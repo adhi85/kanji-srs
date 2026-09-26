@@ -1,36 +1,8 @@
 import json
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-from backend.database import Base, get_db
-from backend.models import Subject, SubjectDependency, SrsItem, Setting  # noqa: F401
-from backend.main import app
-
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestSession = sessionmaker(bind=engine)
+from backend.models import Subject, SubjectDependency, SrsItem
 
 
-def override_get_db():
-    db = TestSession()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_db] = override_get_db
-client = TestClient(app)
-
-
-def setup_function():
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-    db = TestSession()
+def _seed(db):
     subjects = [
         Subject(id=1, type="radical", characters="一", slug="one", level=1, jlpt_level="N5",
                 meanings=json.dumps([{"meaning": "One", "primary": True}])),
@@ -49,35 +21,39 @@ def setup_function():
     for s in subjects:
         db.add(SrsItem(subject_id=s.id))
     db.commit()
-    db.close()
 
 
-def test_list_subjects():
+def test_list_subjects(db, client):
+    _seed(db)
     resp = client.get("/api/subjects")
     assert resp.status_code == 200
     assert len(resp.json()["items"]) == 4
 
 
-def test_filter_by_jlpt():
+def test_filter_by_jlpt(db, client):
+    _seed(db)
     resp = client.get("/api/subjects?jlpt=N5")
     assert resp.status_code == 200
     assert len(resp.json()["items"]) == 4
 
 
-def test_filter_by_type():
+def test_filter_by_type(db, client):
+    _seed(db)
     resp = client.get("/api/subjects?type=kanji")
     assert resp.status_code == 200
     assert len(resp.json()["items"]) == 2
 
 
-def test_search_by_query():
+def test_search_by_query(db, client):
+    _seed(db)
     resp = client.get("/api/subjects?q=big")
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert any(i["characters"] == "大" for i in items)
 
 
-def test_get_subject_detail():
+def test_get_subject_detail(db, client):
+    _seed(db)
     resp = client.get("/api/subjects/2")
     assert resp.status_code == 200
     data = resp.json()
