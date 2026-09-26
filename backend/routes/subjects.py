@@ -1,2 +1,68 @@
-from fastapi import APIRouter
+from __future__ import annotations
+import json
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+from backend.database import get_db
+from backend.models import Subject, SubjectDependency, SrsItem
+
 router = APIRouter()
+
+
+def _subject_to_dict(s: Subject) -> dict:
+    return {
+        "id": s.id,
+        "type": s.type,
+        "characters": s.characters,
+        "slug": s.slug,
+        "level": s.level,
+        "jlpt_level": s.jlpt_level,
+        "meanings": json.loads(s.meanings),
+        "readings": json.loads(s.readings) if s.readings else [],
+        "meaning_mnemonic": s.meaning_mnemonic,
+        "reading_mnemonic": s.reading_mnemonic,
+        "part_of_speech": json.loads(s.part_of_speech) if s.part_of_speech else [],
+    }
+
+
+@router.get("/subjects")
+def list_subjects(
+    jlpt: str | None = None,
+    type: str | None = None,
+    q: str | None = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Subject)
+    if jlpt:
+        query = query.filter(Subject.jlpt_level == jlpt)
+    if type:
+        query = query.filter(Subject.type == type)
+    if q:
+        q_lower = f"%{q.lower()}%"
+        query = query.filter(
+            (Subject.characters.ilike(q_lower)) | (Subject.meanings.ilike(q_lower))
+        )
+    total = query.count()
+    items = query.order_by(Subject.level, Subject.id).offset((page - 1) * per_page).limit(per_page).all()
+    return {"items": [_subject_to_dict(s) for s in items], "total": total, "page": page}
+
+
+@router.get("/subjects/{subject_id}")
+def get_subject(subject_id: int, db: Session = Depends(get_db)):
+    subject = db.get(Subject, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    result = _subject_to_dict(subject)
+    dep_ids = db.query(SubjectDependency.component_id).filter_by(subject_id=subject_id).all()
+    components = [db.get(Subject, d[0]) for d in dep_ids]
+    result["components"] = [_subject_to_dict(c) for c in components if c]
+    srs = db.query(SrsItem).filter_by(subject_id=subject_id).first()
+    if srs:
+        result["srs"] = {
+            "stage": srs.srs_stage,
+            "correct_count": srs.correct_count,
+            "incorrect_count": srs.incorrect_count,
+            "next_review_at": srs.next_review_at,
+        }
+    return result
