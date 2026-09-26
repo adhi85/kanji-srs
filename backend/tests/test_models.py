@@ -1,0 +1,59 @@
+import json
+from backend.models import Subject, SubjectDependency, SrsItem, Setting
+
+
+def test_subject_creation(db):
+    s = Subject(
+        id=1,
+        type="kanji",
+        characters="大",
+        slug="big",
+        level=1,
+        jlpt_level="N5",
+        meanings=json.dumps([{"meaning": "Big", "primary": True}]),
+        readings=json.dumps([{"reading": "たい", "primary": True, "type": "onyomi"}]),
+        meaning_mnemonic="A person spreading arms wide is big.",
+        reading_mnemonic="Tie a big knot.",
+    )
+    db.add(s)
+    db.commit()
+    fetched = db.get(Subject, 1)
+    assert fetched.characters == "大"
+    assert fetched.jlpt_level == "N5"
+    assert json.loads(fetched.meanings)[0]["meaning"] == "Big"
+
+
+def test_subject_dependency(db):
+    radical = Subject(id=1, type="radical", characters="一", slug="one", level=1, jlpt_level="N5",
+                      meanings=json.dumps([{"meaning": "One", "primary": True}]))
+    kanji = Subject(id=2, type="kanji", characters="大", slug="big", level=1, jlpt_level="N5",
+                    meanings=json.dumps([{"meaning": "Big", "primary": True}]))
+    dep = SubjectDependency(subject_id=2, component_id=1)
+    db.add_all([radical, kanji, dep])
+    db.commit()
+
+    deps = db.query(SubjectDependency).filter_by(subject_id=2).all()
+    assert len(deps) == 1
+    assert deps[0].component_id == 1
+
+
+def test_srs_item_defaults(db):
+    s = Subject(id=1, type="radical", characters="口", slug="mouth", level=1, jlpt_level="N5",
+                meanings=json.dumps([{"meaning": "Mouth", "primary": True}]))
+    db.add(s)
+    db.commit()
+    item = SrsItem(subject_id=1)
+    db.add(item)
+    db.commit()
+    assert item.srs_stage == 0
+    assert item.correct_count == 0
+    assert item.incorrect_count == 0
+    assert item.next_review_at is None
+
+
+def test_setting_roundtrip(db):
+    setting = Setting(key="lesson_batch_size", value=json.dumps(5))
+    db.add(setting)
+    db.commit()
+    fetched = db.query(Setting).filter_by(key="lesson_batch_size").one()
+    assert json.loads(fetched.value) == 5
