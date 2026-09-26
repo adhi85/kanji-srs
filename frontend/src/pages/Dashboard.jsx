@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import ProgressBar from '../components/ProgressBar';
 
-const STAGE_NAMES = ['Not Started', 'Apprentice 1', 'Apprentice 2', 'Apprentice 3', 'Apprentice 4',
-                     'Guru 1', 'Guru 2', 'Master', 'Enlightened', 'Burned'];
+const SRS_STAGES = [
+  { key: 'apprentice', label: 'Apprentice', stages: [1, 2, 3, 4], className: 'srs-bg-apprentice' },
+  { key: 'guru', label: 'Guru', stages: [5, 6], className: 'srs-bg-guru' },
+  { key: 'master', label: 'Master', stages: [7], className: 'srs-bg-master' },
+  { key: 'enlightened', label: 'Enlightened', stages: [8], className: 'srs-bg-enlightened' },
+  { key: 'burned', label: 'Burned', stages: [9], className: 'srs-bg-burned' },
+];
 
 export default function Dashboard() {
   const [summary, setSummary] = useState(null);
@@ -11,76 +17,97 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.getSummary().then(setSummary).catch(() => {});
+    api.getSummary().then(setSummary);
   }, []);
 
   useEffect(() => {
-    if (!summary?.next_review_at) return;
-    const interval = setInterval(() => {
-      const diff = Math.max(0, Math.floor(summary.next_review_at - Date.now() / 1000));
+    if (!summary?.next_review_at || summary.reviews_available > 0) return;
+    const tick = () => {
+      const diff = summary.next_review_at - Date.now() / 1000;
+      if (diff <= 0) { setCountdown('Now!'); return; }
       const h = Math.floor(diff / 3600);
       const m = Math.floor((diff % 3600) / 60);
-      const s = diff % 60;
+      const s = Math.floor(diff % 60);
       setCountdown(`${h}h ${m}m ${s}s`);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [summary?.next_review_at]);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [summary]);
 
-  if (!summary) return <p>Loading...</p>;
+  if (!summary) return <div className="text-center text-muted mt-3">Loading...</div>;
+
+  const stageCounts = summary.srs_stage_counts || {};
+  const lp = summary.level_progress || {};
 
   return (
     <div>
-      <div className="card" style={{ textAlign: 'center' }}>
-        <h1 style={{ fontSize: '3rem' }}>{summary.reviews_available}</h1>
-        <p>Reviews Available</p>
-        {summary.reviews_available > 0 && (
-          <button className="btn" onClick={() => navigate('/reviews')} style={{ marginTop: '1rem' }}>
-            Start Reviews
-          </button>
-        )}
-        {summary.next_review_at && summary.reviews_available === 0 && (
-          <p style={{ marginTop: '0.5rem', color: '#a0a0b0' }}>Next review in {countdown}</p>
-        )}
-      </div>
-
-      <div className="card" style={{ textAlign: 'center' }}>
-        <h2>{summary.lessons_available}</h2>
-        <p>Lessons Available</p>
-        {summary.lessons_available > 0 && (
-          <button className="btn" onClick={() => navigate('/lessons')} style={{ marginTop: '1rem' }}>
-            Start Lessons
-          </button>
-        )}
-      </div>
-
-      <div className="card">
-        <h2>SRS Stages</h2>
-        {STAGE_NAMES.map((name, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0' }}>
-            <span>{name}</span>
-            <span>{summary.srs_stage_counts[String(i)] || 0}</span>
+      <div className="card dashboard-level">
+        <div className="dashboard-level-label">Current Level</div>
+        <div className="dashboard-level-number">{summary.current_level || 1}</div>
+        <div style={{ maxWidth: 400, margin: '0.75rem auto 0' }}>
+          <ProgressBar
+            value={lp.kanji_passed || 0}
+            max={lp.kanji_total || 1}
+            label={`Kanji: ${lp.kanji_passed || 0} / ${lp.kanji_total || 0} passed`}
+            color="var(--color-kanji)"
+            size="lg"
+          />
+          <div className="mt-1">
+            <ProgressBar
+              value={lp.radical_passed || 0}
+              max={lp.radical_total || 1}
+              label={`Radicals: ${lp.radical_passed || 0} / ${lp.radical_total || 0} passed`}
+              color="var(--color-radical)"
+            />
           </div>
-        ))}
+        </div>
+      </div>
+
+      <div className="dashboard-sessions">
+        <div className="session-card reviews" onClick={() => navigate('/reviews')}>
+          <div className="session-count">{summary.reviews_available}</div>
+          <div className="session-label">Reviews</div>
+          {summary.reviews_available === 0 && countdown && (
+            <div className="countdown">Next in {countdown}</div>
+          )}
+        </div>
+        <div className="session-card lessons" onClick={() => navigate('/lessons')}>
+          <div className="session-count">{summary.lessons_available}</div>
+          <div className="session-label">Lessons</div>
+        </div>
       </div>
 
       <div className="card">
-        <h2>JLPT Progress</h2>
-        {['N5', 'N4', 'N3', 'N2', 'N1'].map(level => {
-          const p = summary.jlpt_progress[level];
-          if (!p) return null;
-          const pct = p.total > 0 ? (p.burned / p.total) * 100 : 0;
-          return (
-            <div key={level} style={{ marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>{level}</span>
-                <span>{p.burned} / {p.total}</span>
+        <div className="card-header">SRS Stages</div>
+        <div className="srs-breakdown">
+          {SRS_STAGES.map((group) => {
+            const count = group.stages.reduce((sum, s) => sum + (stageCounts[String(s)] || 0), 0);
+            return (
+              <div key={group.key} className={`srs-breakdown-item ${group.className}`}>
+                <div className="srs-breakdown-count">{count}</div>
+                <div className="srs-breakdown-label">{group.label}</div>
               </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${pct}%` }} />
-              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">JLPT Progress</div>
+        <div className="jlpt-grid">
+          {(summary.jlpt_progress || []).map((j) => (
+            <div key={j.jlpt_level} className="jlpt-item">
+              <div className="jlpt-label">{j.jlpt_level}</div>
+              <ProgressBar
+                value={j.burned}
+                max={j.total}
+                color="var(--color-burned)"
+              />
+              <div className="jlpt-fraction">{j.burned}/{j.total}</div>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
     </div>
   );

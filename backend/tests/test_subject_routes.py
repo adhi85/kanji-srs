@@ -60,3 +60,13 @@ def test_get_subject_detail(db, client):
     assert data["characters"] == "大"
     assert len(data["components"]) == 1
     assert data["components"][0]["characters"] == "一"
+
+
+def test_subject_detail_includes_used_in(db, client):
+    _seed(db)
+    resp = client.get("/api/subjects/1")
+    data = resp.json()
+    assert "used_in" in data
+    assert len(data["used_in"]) == 1
+    assert data["used_in"][0]["id"] == 2
+    assert data["used_in"][0]["characters"] == "大"

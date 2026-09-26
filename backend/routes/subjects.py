@@ -57,10 +57,17 @@ def get_subject(subject_id: int, db: Session = Depends(get_db)):
     dep_ids = db.query(SubjectDependency.component_id).filter_by(subject_id=subject_id).all()
     components = [db.get(Subject, d[0]) for d in dep_ids]
     result["components"] = [_subject_to_dict(c) for c in components if c]
+    used_in_rows = (
+        db.query(Subject)
+        .join(SubjectDependency, SubjectDependency.subject_id == Subject.id)
+        .filter(SubjectDependency.component_id == subject_id)
+        .all()
+    )
+    result["used_in"] = [_subject_to_dict(s) for s in used_in_rows]
     srs = db.query(SrsItem).filter_by(subject_id=subject_id).first()
     if srs:
         result["srs"] = {
-            "stage": srs.srs_stage,
+            "srs_stage": srs.srs_stage,
             "correct_count": srs.correct_count,
             "incorrect_count": srs.incorrect_count,
             "next_review_at": srs.next_review_at,

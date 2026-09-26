@@ -2,7 +2,7 @@ import time
 from collections import defaultdict
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import case, func
 from backend.database import get_db
 from backend.models import Subject, SrsItem
 
@@ -54,10 +54,61 @@ def get_summary(db: Session = Depends(get_db)):
             )
             jlpt_progress[level] = {"total": total, "burned": burned}
 
+    level_rows = (
+        db.query(
+            Subject.level,
+            func.count(Subject.id).label("total"),
+            func.sum(case((SrsItem.srs_stage >= 5, 1), else_=0)).label("passed"),
+        )
+        .outerjoin(SrsItem)
+        .filter(Subject.type == "kanji")
+        .group_by(Subject.level)
+        .all()
+    )
+    level_map = {r.level: (r.total, r.passed or 0) for r in level_rows}
+    current_level = 1
+    for lvl in range(1, 61):
+        if lvl not in level_map:
+            break
+        total_k, passed_k = level_map[lvl]
+        if total_k > 0 and passed_k / total_k >= 0.9:
+            current_level = lvl + 1
+        else:
+            break
+    current_level = min(current_level, 60)
+
+    progress_rows = (
+        db.query(
+            Subject.type,
+            func.count(Subject.id).label("total"),
+            func.sum(case((SrsItem.srs_stage >= 5, 1), else_=0)).label("passed"),
+        )
+        .outerjoin(SrsItem)
+        .filter(Subject.level == current_level)
+        .group_by(Subject.type)
+        .all()
+    )
+    level_progress = {"level": current_level, "kanji_total": 0, "kanji_passed": 0,
+                      "radical_total": 0, "radical_passed": 0}
+    for row in progress_rows:
+        if row.type == "kanji":
+            level_progress["kanji_total"] = row.total
+            level_progress["kanji_passed"] = row.passed or 0
+        elif row.type == "radical":
+            level_progress["radical_total"] = row.total
+            level_progress["radical_passed"] = row.passed or 0
+
+    jlpt_list = sorted(
+        [{"jlpt_level": k, **v} for k, v in jlpt_progress.items()],
+        key=lambda x: x["jlpt_level"],
+    )
+
     return {
         "reviews_available": reviews_available,
         "next_review_at": next_review,
         "lessons_available": lessons_available,
         "srs_stage_counts": dict(stage_counts),
-        "jlpt_progress": jlpt_progress,
+        "jlpt_progress": jlpt_list,
+        "current_level": current_level,
+        "level_progress": level_progress,
     }

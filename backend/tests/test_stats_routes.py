@@ -39,8 +39,18 @@ def test_summary_jlpt_progress(db, client):
     _seed(db)
     resp = client.get("/api/summary")
     data = resp.json()
-    progress = data["jlpt_progress"]
+    progress = {p["jlpt_level"]: p for p in data["jlpt_progress"]}
     assert "N5" in progress
     assert progress["N5"]["total"] == 2
     assert progress["N5"]["burned"] == 0
     assert progress["N4"]["burned"] == 1
+
+
+def test_summary_includes_current_level(db, client):
+    _seed(db)
+    resp = client.get("/api/summary")
+    data = resp.json()
+    assert "current_level" in data
+    assert "level_progress" in data
+    assert data["current_level"] == 1
+    assert data["level_progress"]["level"] == 1

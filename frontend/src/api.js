@@ -28,4 +28,6 @@ export const api = {
     method: 'PUT',
     body: JSON.stringify(updates),
   }),
+  getLevels: () => request('/levels'),
+  getLevelDetail: (level) => request(`/levels/${level}`),
 };
