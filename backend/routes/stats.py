@@ -1,7 +1,8 @@
+import json
 import time
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import case, func
 from backend.database import get_db
@@ -154,3 +155,33 @@ def get_forecast(db: Session = Depends(get_db)):
         next_5_days.append({"date": key, "label": label, "count": daily.get(key, 0)})
 
     return {"next_24h": next_24h, "next_5_days": next_5_days}
+
+
+@router.get("/critical-items")
+def get_critical_items(limit: int = Query(10, ge=0), db: Session = Depends(get_db)):
+    items = (
+        db.query(SrsItem)
+        .join(Subject)
+        .filter(SrsItem.incorrect_count >= 4)
+        .filter(SrsItem.srs_stage.between(1, 8))
+        .all()
+    )
+    leeches = []
+    for item in items:
+        total = item.correct_count + item.incorrect_count
+        if total == 0:
+            continue
+        error_rate = round(item.incorrect_count / total * 100)
+        if error_rate > 50:
+            leeches.append({
+                "subject_id": item.subject_id,
+                "type": item.subject.type,
+                "characters": item.subject.characters,
+                "meanings": json.loads(item.subject.meanings),
+                "srs_stage": item.srs_stage,
+                "error_rate": error_rate,
+                "correct_count": item.correct_count,
+                "incorrect_count": item.incorrect_count,
+            })
+    leeches.sort(key=lambda x: x["error_rate"], reverse=True)
+    return leeches[:limit]
