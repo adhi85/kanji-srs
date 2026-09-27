@@ -8,6 +8,7 @@ import Subjects from './pages/Subjects';
 import SubjectDetail from './pages/SubjectDetail';
 import LevelDetail from './pages/LevelDetail';
 import Settings from './pages/Settings';
+import ExtraStudy from './pages/ExtraStudy';
 import './App.css';
 
 function Nav() {
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="/subjects/:id" element={<SubjectDetail />} />
           <Route path="/levels/:level" element={<LevelDetail />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/extra-study/:mode" element={<ExtraStudy />} />
         </Routes>
       </main>
     </BrowserRouter>

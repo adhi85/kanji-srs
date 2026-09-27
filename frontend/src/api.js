@@ -30,4 +30,20 @@ export const api = {
   }),
   getLevels: () => request('/levels'),
   getLevelDetail: (level) => request(`/levels/${level}`),
+  getForecast: () => request('/forecast'),
+  getExtraStudySummary: () => request('/extra-study/summary'),
+  getExtraStudy: (mode) => request(`/extra-study?mode=${mode}`),
+  submitExtraStudy: (subjectId, answerType, answer) => request(`/extra-study/${subjectId}`, {
+    method: 'POST',
+    body: JSON.stringify({ answer_type: answerType, answer }),
+  }),
+  getCriticalItems: () => request('/critical-items'),
+  getSubjectSynonyms: (id) => request(`/subjects/${id}/synonyms`),
+  addSubjectSynonym: (id, meaning) => request(`/subjects/${id}/synonyms`, {
+    method: 'POST',
+    body: JSON.stringify({ meaning }),
+  }),
+  deleteSubjectSynonym: (subjectId, synonymId) => request(`/subjects/${subjectId}/synonyms/${synonymId}`, {
+    method: 'DELETE',
+  }),
 };
