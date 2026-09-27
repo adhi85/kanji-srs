@@ -31,9 +31,60 @@ def check_answer_meaning(answer: str, meanings: list[dict]) -> bool:
     return False
 
 
+def check_answer_meaning_detailed(
+    answer: str,
+    meanings: list[dict],
+    synonyms: list[str] | None = None,
+) -> dict:
+    answer_lower = answer.strip().lower()
+
+    all_accepted = [m["meaning"] for m in meanings if m.get("accepted_answer", True)]
+    if synonyms:
+        all_accepted.extend(synonyms)
+
+    for accepted in all_accepted:
+        if answer_lower == accepted.strip().lower():
+            return {"status": "correct"}
+
+    closest_dist = float("inf")
+    closest_word = None
+    for accepted in all_accepted:
+        expected = accepted.strip().lower()
+        if len(expected) < 5:
+            continue
+        dist = _levenshtein(answer_lower, expected)
+        if dist < closest_dist:
+            closest_dist = dist
+            closest_word = accepted
+
+    threshold = 1 if (closest_word and len(closest_word) <= 7) else 2
+    if closest_word and closest_dist <= threshold:
+        return {"status": "close", "did_you_mean": closest_word}
+
+    return {"status": "incorrect"}
+
+
 def check_answer_reading(answer: str, readings: list[dict]) -> bool:
     answer_stripped = answer.strip()
-    return any(r["reading"].strip() == answer_stripped for r in readings)
+    return any(
+        r["reading"].strip() == answer_stripped
+        for r in readings
+        if r.get("accepted_answer") is not False
+    )
+
+
+def check_reading_hint(answer: str, readings: list[dict]) -> str | None:
+    answer_stripped = answer.strip()
+    for r in readings:
+        if r["reading"].strip() == answer_stripped and r.get("accepted_answer") is False:
+            wanted_type = next(
+                (rd.get("type") for rd in readings if rd.get("accepted_answer") is not False),
+                None,
+            )
+            if wanted_type:
+                return f"We're looking for the {wanted_type} reading"
+            return "That's not the reading we're looking for"
+    return None
 
 
 def _levenshtein(s1: str, s2: str) -> int:

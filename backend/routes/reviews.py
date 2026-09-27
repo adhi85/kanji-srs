@@ -4,13 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import Subject, SrsItem, Setting
+from backend.models import Subject, SrsItem, Setting, UserSynonym
 from backend.srs_engine import (
     advance_stage,
     retreat_stage,
     next_review_time,
     check_answer_meaning,
+    check_answer_meaning_detailed,
     check_answer_reading,
+    check_reading_hint,
     DEFAULT_INTERVALS,
 )
 
@@ -62,15 +64,42 @@ def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get
     readings = json.loads(subject.readings) if subject.readings else []
 
     if req.answer_type == "meaning":
-        correct = check_answer_meaning(req.answer, meanings)
+        user_syns = [s.meaning for s in db.query(UserSynonym).filter_by(subject_id=subject_id).all()]
+        detailed = check_answer_meaning_detailed(req.answer, meanings, user_syns or None)
+        correct = detailed["status"] == "correct"
+        close = detailed["status"] == "close"
         correct_answer = next((m["meaning"] for m in meanings if m.get("primary")), meanings[0]["meaning"])
         mnemonic = subject.meaning_mnemonic
     elif req.answer_type == "reading":
         correct = check_answer_reading(req.answer, readings)
+        if not correct:
+            hint = check_reading_hint(req.answer, readings)
+            if hint:
+                db.commit()
+                return {
+                    "correct": False,
+                    "retry": True,
+                    "hint": hint,
+                    "correct_answer": None,
+                    "new_stage": item.srs_stage,
+                    "mnemonic": None,
+                }
+        close = False
+        detailed = None
         correct_answer = next((r["reading"] for r in readings if r.get("primary")), readings[0]["reading"] if readings else "")
         mnemonic = subject.reading_mnemonic
     else:
         raise HTTPException(status_code=400, detail="answer_type must be 'meaning' or 'reading'")
+
+    if close:
+        return {
+            "correct": False,
+            "close": True,
+            "did_you_mean": detailed.get("did_you_mean") if detailed else None,
+            "correct_answer": None,
+            "new_stage": item.srs_stage,
+            "mnemonic": None,
+        }
 
     if correct:
         if req.answer_type == "meaning":
@@ -105,6 +134,7 @@ def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get
 
     return {
         "correct": correct,
+        "close": False,
         "correct_answer": correct_answer if not correct else None,
         "new_stage": new_stage,
         "mnemonic": mnemonic if not correct else None,

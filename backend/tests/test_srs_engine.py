@@ -4,6 +4,7 @@ from backend.srs_engine import (
     retreat_stage,
     next_review_time,
     check_answer_meaning,
+    check_answer_meaning_detailed,
     check_answer_reading,
     DEFAULT_INTERVALS,
 )
@@ -82,3 +83,37 @@ class TestAnswerChecking:
             {"reading": "おお", "primary": False, "type": "kunyomi"},
         ]
         assert check_answer_reading("おお", readings) is True
+
+
+class TestDetailedAnswerChecking:
+    def test_exact_match_returns_correct(self):
+        meanings = [{"meaning": "Big", "primary": True}]
+        result = check_answer_meaning_detailed("big", meanings)
+        assert result["status"] == "correct"
+
+    def test_typo_returns_close(self):
+        meanings = [{"meaning": "Beginning", "primary": True}]
+        result = check_answer_meaning_detailed("begining", meanings)
+        assert result["status"] == "close"
+
+    def test_wrong_answer_returns_incorrect(self):
+        meanings = [{"meaning": "Big", "primary": True}]
+        result = check_answer_meaning_detailed("small", meanings)
+        assert result["status"] == "incorrect"
+
+    def test_short_word_typo_is_wrong_not_close(self):
+        meanings = [{"meaning": "Big", "primary": True}]
+        result = check_answer_meaning_detailed("bag", meanings)
+        assert result["status"] == "incorrect"
+
+    def test_close_includes_did_you_mean(self):
+        meanings = [{"meaning": "Construction", "primary": True}]
+        result = check_answer_meaning_detailed("constructon", meanings)
+        assert result["status"] == "close"
+        assert result["did_you_mean"] == "Construction"
+
+    def test_synonym_list_checked(self):
+        meanings = [{"meaning": "Big", "primary": True}]
+        synonyms = ["Huge", "Enormous"]
+        result = check_answer_meaning_detailed("huge", meanings, synonyms)
+        assert result["status"] == "correct"

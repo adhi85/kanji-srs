@@ -1,9 +1,10 @@
 from __future__ import annotations
 import json
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import Subject, SubjectDependency, SrsItem
+from backend.models import Subject, SubjectDependency, SrsItem, UserSynonym
 
 router = APIRouter()
 
@@ -21,6 +22,9 @@ def _subject_to_dict(s: Subject) -> dict:
         "meaning_mnemonic": s.meaning_mnemonic,
         "reading_mnemonic": s.reading_mnemonic,
         "part_of_speech": json.loads(s.part_of_speech) if s.part_of_speech else [],
+        "context_sentences": s.context_sentences,
+        "meaning_hint": s.meaning_hint,
+        "reading_hint": s.reading_hint,
     }
 
 
@@ -72,4 +76,47 @@ def get_subject(subject_id: int, db: Session = Depends(get_db)):
             "incorrect_count": srs.incorrect_count,
             "next_review_at": srs.next_review_at,
         }
+    synonyms = db.query(UserSynonym).filter_by(subject_id=subject_id).all()
+    result["user_synonyms"] = [
+        {"id": s.id, "meaning": s.meaning} for s in synonyms
+    ]
     return result
+
+
+class SynonymRequest(BaseModel):
+    meaning: str
+
+
+@router.get("/subjects/{subject_id}/synonyms")
+def list_synonyms(subject_id: int, db: Session = Depends(get_db)):
+    return [
+        {"id": s.id, "subject_id": s.subject_id, "meaning": s.meaning}
+        for s in db.query(UserSynonym).filter_by(subject_id=subject_id).all()
+    ]
+
+
+@router.post("/subjects/{subject_id}/synonyms")
+def add_synonym(subject_id: int, req: SynonymRequest, db: Session = Depends(get_db)):
+    subject = db.get(Subject, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    existing = db.query(UserSynonym).filter_by(
+        subject_id=subject_id, meaning=req.meaning
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Synonym already exists")
+    syn = UserSynonym(subject_id=subject_id, meaning=req.meaning)
+    db.add(syn)
+    db.commit()
+    db.refresh(syn)
+    return {"id": syn.id, "subject_id": syn.subject_id, "meaning": syn.meaning}
+
+
+@router.delete("/subjects/{subject_id}/synonyms/{synonym_id}")
+def delete_synonym(subject_id: int, synonym_id: int, db: Session = Depends(get_db)):
+    syn = db.query(UserSynonym).filter_by(id=synonym_id, subject_id=subject_id).first()
+    if not syn:
+        raise HTTPException(status_code=404, detail="Synonym not found")
+    db.delete(syn)
+    db.commit()
+    return {"deleted": True}
