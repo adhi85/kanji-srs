@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import Subject, SrsItem, Setting, UserSynonym
+from sqlalchemy import func
+from backend.models import Subject, SrsItem, Setting, UserSynonym, SubjectDependency, LevelEvent
+from backend.routes.levels import compute_current_level
 from backend.srs_engine import (
     advance_stage,
     retreat_stage,
@@ -35,15 +37,36 @@ def get_reviews(db: Session = Depends(get_db)):
         .order_by(SrsItem.next_review_at)
         .all()
     )
-    return [
-        {
+    results = []
+    for item in items:
+        s = item.subject
+        comp_ids = db.query(SubjectDependency.component_id).filter_by(subject_id=s.id).all()
+        components = []
+        for (cid,) in comp_ids:
+            c = db.get(Subject, cid)
+            if c:
+                components.append({
+                    "id": c.id, "characters": c.characters, "type": c.type,
+                    "meanings": json.loads(c.meanings),
+                })
+        synonyms = [{"id": syn.id, "meaning": syn.meaning}
+                     for syn in db.query(UserSynonym).filter_by(subject_id=s.id).all()]
+        results.append({
             "srs_item_id": item.id,
             "subject_id": item.subject_id,
-            "type": item.subject.type,
-            "characters": item.subject.characters,
-        }
-        for item in items
-    ]
+            "type": s.type,
+            "characters": s.characters,
+            "meanings": json.loads(s.meanings),
+            "readings": json.loads(s.readings) if s.readings else [],
+            "meaning_mnemonic": s.meaning_mnemonic,
+            "reading_mnemonic": s.reading_mnemonic,
+            "meaning_hint": s.meaning_hint,
+            "reading_hint": s.reading_hint,
+            "auxiliary_meanings": json.loads(s.auxiliary_meanings) if s.auxiliary_meanings else [],
+            "components": components,
+            "user_synonyms": synonyms,
+        })
+    return results
 
 
 class AnswerRequest(BaseModel):
@@ -134,10 +157,20 @@ def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get
 
     db.commit()
 
+    level_up = None
+    if meaning_done and reading_done:
+        current_level = compute_current_level(db)
+        max_recorded = db.query(func.max(LevelEvent.level)).scalar() or 0
+        if current_level > max_recorded:
+            db.add(LevelEvent(level=current_level, reached_at=time.time()))
+            db.commit()
+            level_up = {"new_level": current_level}
+
     return {
         "correct": correct,
         "close": False,
         "correct_answer": correct_answer if not correct else None,
         "new_stage": new_stage,
         "mnemonic": mnemonic if not correct else None,
+        "level_up": level_up,
     }

@@ -107,6 +107,16 @@ def test_double_wrong_only_drops_once(db, client):
     assert resp2.json()["new_stage"] == 3
 
 
+def test_get_reviews_returns_full_subject_data(db, client):
+    _seed(db)
+    resp = client.get("/api/reviews")
+    item = resp.json()[0]
+    assert "meanings" in item
+    assert "readings" in item
+    assert "meaning_mnemonic" in item
+    assert "components" in item
+
+
 def test_reading_no_hint_for_wrong_answer(db, client):
     _seed_with_kunyomi(db)
     resp = client.post("/api/reviews/2", json={"answer_type": "reading", "answer": "かん"})

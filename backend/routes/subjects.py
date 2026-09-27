@@ -25,6 +25,7 @@ def _subject_to_dict(s: Subject) -> dict:
         "context_sentences": json.loads(s.context_sentences) if s.context_sentences else [],
         "meaning_hint": s.meaning_hint,
         "reading_hint": s.reading_hint,
+        "visually_similar_subject_ids": json.loads(s.visually_similar_subject_ids) if s.visually_similar_subject_ids else [],
     }
 
 
@@ -68,6 +69,16 @@ def get_subject(subject_id: int, db: Session = Depends(get_db)):
         .all()
     )
     result["used_in"] = [_subject_to_dict(s) for s in used_in_rows]
+    vis_sim_ids = json.loads(subject.visually_similar_subject_ids) if subject.visually_similar_subject_ids else []
+    vis_similar = []
+    for vid in vis_sim_ids:
+        vs = db.get(Subject, vid)
+        if vs:
+            vis_similar.append({
+                "id": vs.id, "characters": vs.characters, "type": vs.type,
+                "meanings": json.loads(vs.meanings),
+            })
+    result["visually_similar"] = vis_similar
     srs = db.query(SrsItem).filter_by(subject_id=subject_id).first()
     if srs:
         result["srs"] = {
@@ -110,6 +121,46 @@ def add_synonym(subject_id: int, req: SynonymRequest, db: Session = Depends(get_
     db.commit()
     db.refresh(syn)
     return {"id": syn.id, "subject_id": syn.subject_id, "meaning": syn.meaning}
+
+
+@router.post("/subjects/{subject_id}/reset")
+def reset_subject(subject_id: int, db: Session = Depends(get_db)):
+    item = db.query(SrsItem).filter_by(subject_id=subject_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="SRS item not found")
+    if item.srs_stage < 1:
+        raise HTTPException(status_code=400, detail="Item is not started")
+    item.srs_stage = 0
+    item.started_at = None
+    item.next_review_at = None
+    item.correct_count = 0
+    item.incorrect_count = 0
+    item.meaning_correct_in_session = 0
+    item.reading_correct_in_session = 0
+    item.incorrect_in_session = 0
+    db.commit()
+    return {"srs_stage": 0, "correct_count": 0, "incorrect_count": 0}
+
+
+@router.post("/subjects/{subject_id}/resurrect")
+def resurrect_subject(subject_id: int, db: Session = Depends(get_db)):
+    import time as _time
+    item = db.query(SrsItem).filter_by(subject_id=subject_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="SRS item not found")
+    if item.srs_stage != 9:
+        raise HTTPException(status_code=400, detail="Only burned items can be resurrected")
+    item.srs_stage = 1
+    item.next_review_at = _time.time()
+    item.meaning_correct_in_session = 0
+    item.reading_correct_in_session = 0
+    item.incorrect_in_session = 0
+    db.commit()
+    return {
+        "srs_stage": 1,
+        "correct_count": item.correct_count,
+        "incorrect_count": item.incorrect_count,
+    }
 
 
 @router.delete("/subjects/{subject_id}/synonyms/{synonym_id}")

@@ -57,6 +57,26 @@ def get_lessons(db: Session = Depends(get_db)):
     results = []
     for item in items:
         s = item.subject
+        comp_ids = db.query(SubjectDependency.component_id).filter_by(subject_id=s.id).all()
+        components = []
+        for (cid,) in comp_ids:
+            c = db.get(Subject, cid)
+            if c:
+                components.append({
+                    "id": c.id, "characters": c.characters, "type": c.type,
+                    "meanings": json.loads(c.meanings),
+                })
+
+        vis_similar = []
+        if s.type == "kanji" and s.visually_similar_subject_ids:
+            for vid in json.loads(s.visually_similar_subject_ids):
+                vs = db.get(Subject, vid)
+                if vs:
+                    vis_similar.append({
+                        "id": vs.id, "characters": vs.characters, "type": vs.type,
+                        "meanings": json.loads(vs.meanings),
+                    })
+
         results.append({
             "id": s.id,
             "type": s.type,
@@ -65,6 +85,12 @@ def get_lessons(db: Session = Depends(get_db)):
             "readings": json.loads(s.readings) if s.readings else [],
             "meaning_mnemonic": s.meaning_mnemonic,
             "reading_mnemonic": s.reading_mnemonic,
+            "meaning_hint": s.meaning_hint,
+            "reading_hint": s.reading_hint,
+            "components": components,
+            "context_sentences": json.loads(s.context_sentences) if s.context_sentences else [],
+            "part_of_speech": json.loads(s.part_of_speech) if s.part_of_speech else [],
+            "visually_similar": vis_similar,
         })
     return results
 

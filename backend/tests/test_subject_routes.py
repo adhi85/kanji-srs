@@ -70,3 +70,22 @@ def test_subject_detail_includes_used_in(db, client):
     assert len(data["used_in"]) == 1
     assert data["used_in"][0]["id"] == 2
     assert data["used_in"][0]["characters"] == "大"
+
+
+def test_subject_detail_includes_visually_similar(db, client):
+    db.add(Subject(id=10, type="kanji", characters="大", slug="big2", level=1, jlpt_level="N5",
+                   meanings=json.dumps([{"meaning": "Big", "primary": True}]),
+                   readings=json.dumps([{"reading": "たい", "primary": True}]),
+                   visually_similar_subject_ids=json.dumps([11])))
+    db.add(Subject(id=11, type="kanji", characters="太", slug="fat", level=1, jlpt_level="N5",
+                   meanings=json.dumps([{"meaning": "Fat", "primary": True}]),
+                   readings=json.dumps([{"reading": "ふと", "primary": True}])))
+    db.add(SrsItem(subject_id=10))
+    db.add(SrsItem(subject_id=11))
+    db.commit()
+
+    resp = client.get("/api/subjects/10")
+    data = resp.json()
+    assert "visually_similar" in data
+    assert len(data["visually_similar"]) == 1
+    assert data["visually_similar"][0]["characters"] == "太"

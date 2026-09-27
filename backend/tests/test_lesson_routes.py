@@ -84,3 +84,30 @@ def test_dependency_gating_allows_guru_components(db, client):
     resp = client.get("/api/lessons")
     ids = [item["id"] for item in resp.json()]
     assert 201 in ids
+
+
+def test_lessons_include_components_and_context(db, client):
+    db.add(Subject(id=300, type="radical", characters="r", slug="r3", level=1, jlpt_level="N5",
+                   meanings=json.dumps([{"meaning": "R3", "primary": True}])))
+    db.add(SrsItem(subject_id=300, srs_stage=5))
+
+    db.add(Subject(id=301, type="kanji", characters="k", slug="k3", level=1, jlpt_level="N5",
+                   meanings=json.dumps([{"meaning": "K3", "primary": True}]),
+                   readings=json.dumps([{"reading": "か", "primary": True}]),
+                   meaning_hint="Think of K",
+                   context_sentences=json.dumps([{"ja": "これはKです", "en": "This is K"}])))
+    db.add(SrsItem(subject_id=301, srs_stage=0))
+    db.add(SubjectDependency(subject_id=301, component_id=300))
+
+    db.add(Setting(key="lesson_batch_size", value=json.dumps(10)))
+    db.add(Setting(key="dependency_gating", value=json.dumps(False)))
+    db.add(Setting(key="jlpt_gating", value=json.dumps(False)))
+    db.add(Setting(key="srs_intervals", value=json.dumps(DEFAULT_INTERVALS)))
+    db.commit()
+
+    resp = client.get("/api/lessons")
+    item = resp.json()[0]
+    assert item["id"] == 301
+    assert len(item["components"]) == 1
+    assert item["meaning_hint"] == "Think of K"
+    assert len(item["context_sentences"]) == 1

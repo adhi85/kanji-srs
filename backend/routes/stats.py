@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import case, func
 from backend.database import get_db
-from backend.models import Subject, SrsItem
+from backend.models import Subject, SrsItem, LevelEvent
 
 router = APIRouter()
 
@@ -185,3 +185,32 @@ def get_critical_items(limit: int = Query(10, ge=0), db: Session = Depends(get_d
             })
     leeches.sort(key=lambda x: x["error_rate"], reverse=True)
     return leeches[:limit]
+
+
+@router.get("/recently-unlocked")
+def get_recently_unlocked(db: Session = Depends(get_db)):
+    cutoff = time.time() - 172800
+    items = (
+        db.query(SrsItem)
+        .join(Subject)
+        .filter(SrsItem.started_at != None, SrsItem.started_at >= cutoff)
+        .order_by(SrsItem.started_at.desc())
+        .limit(10)
+        .all()
+    )
+    return [
+        {
+            "id": item.subject.id,
+            "characters": item.subject.characters,
+            "type": item.subject.type,
+            "meanings": json.loads(item.subject.meanings),
+            "srs_stage": item.srs_stage,
+        }
+        for item in items
+    ]
+
+
+@router.get("/level-history")
+def get_level_history(db: Session = Depends(get_db)):
+    events = db.query(LevelEvent).order_by(LevelEvent.level.asc()).all()
+    return [{"level": e.level, "reached_at": e.reached_at} for e in events]
