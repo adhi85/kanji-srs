@@ -49,7 +49,9 @@ def import_subjects(db: Session, token: str):
                 for comp_id in subj_data.get("component_subject_ids", []):
                     db.merge(SubjectDependency(subject_id=item["id"], component_id=comp_id))
 
-                db.merge(SrsItem(subject_id=item["id"], srs_stage=0))
+                existing_srs = db.query(SrsItem).filter_by(subject_id=item["id"]).first()
+                if not existing_srs:
+                    db.add(SrsItem(subject_id=item["id"], srs_stage=0))
 
             total_imported += len(data["data"])
             print("Imported {} subjects...".format(total_imported))
