@@ -1,5 +1,5 @@
 import json
-from backend.models import Subject, SubjectDependency, SrsItem, Setting
+from backend.models import Subject, SubjectDependency, SrsItem, Setting, UserSynonym
 
 
 def test_subject_creation(db):
@@ -57,3 +57,42 @@ def test_setting_roundtrip(db):
     db.commit()
     fetched = db.query(Setting).filter_by(key="lesson_batch_size").one()
     assert json.loads(fetched.value) == 5
+
+
+def test_subject_has_new_columns(db):
+    s = Subject(
+        id=99, type="vocabulary", characters="食べる", slug="taberu", level=5,
+        meanings=json.dumps([{"meaning": "To Eat", "primary": True}]),
+        context_sentences=json.dumps([{"ja": "ご飯を食べる", "en": "I eat rice"}]),
+        meaning_hint="Think about what you do with food",
+        reading_hint="The kun'yomi reading",
+        auxiliary_meanings=json.dumps([{"meaning": "Eat", "type": "whitelist"}]),
+        visually_similar_subject_ids=json.dumps([440, 441]),
+    )
+    db.add(s)
+    db.commit()
+    loaded = db.get(Subject, 99)
+    assert loaded.context_sentences is not None
+    assert json.loads(loaded.context_sentences)[0]["ja"] == "ご飯を食べる"
+    assert loaded.meaning_hint == "Think about what you do with food"
+    assert loaded.reading_hint == "The kun'yomi reading"
+
+
+def test_srs_item_has_last_incorrect_at(db):
+    db.add(Subject(id=98, type="radical", characters="一", slug="one", level=1,
+                   meanings=json.dumps([{"meaning": "One", "primary": True}])))
+    db.add(SrsItem(subject_id=98, srs_stage=2, last_incorrect_at=1695000000.0))
+    db.commit()
+    item = db.query(SrsItem).filter_by(subject_id=98).first()
+    assert item.last_incorrect_at == 1695000000.0
+
+
+def test_user_synonym_model(db):
+    db.add(Subject(id=97, type="kanji", characters="大", slug="big", level=1,
+                   meanings=json.dumps([{"meaning": "Big", "primary": True}])))
+    db.commit()
+    db.add(UserSynonym(subject_id=97, meaning="Huge"))
+    db.commit()
+    syns = db.query(UserSynonym).filter_by(subject_id=97).all()
+    assert len(syns) == 1
+    assert syns[0].meaning == "Huge"

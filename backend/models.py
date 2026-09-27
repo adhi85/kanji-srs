@@ -18,6 +18,11 @@ class Subject(Base):
     reading_mnemonic = Column(Text, nullable=True)
     part_of_speech = Column(Text, nullable=True)
     document_url = Column(Text, nullable=True)
+    context_sentences = Column(Text, nullable=True)
+    meaning_hint = Column(Text, nullable=True)
+    reading_hint = Column(Text, nullable=True)
+    auxiliary_meanings = Column(Text, nullable=True)
+    visually_similar_subject_ids = Column(Text, nullable=True)
 
     srs_item = relationship("SrsItem", back_populates="subject", uselist=False)
     components = relationship(
@@ -49,6 +54,7 @@ class SrsItem(Base):
     incorrect_count = Column(Integer, default=0)
     meaning_correct_in_session = Column(Integer, default=0)
     reading_correct_in_session = Column(Integer, default=0)
+    last_incorrect_at = Column(Float, nullable=True)
 
     subject = relationship("Subject", back_populates="srs_item")
 
@@ -58,3 +64,11 @@ class Setting(Base):
 
     key = Column(Text, primary_key=True)
     value = Column(Text, nullable=False)
+
+
+class UserSynonym(Base):
+    __tablename__ = "user_synonyms"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False)
+    meaning = Column(Text, nullable=False)
