@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from backend.database import Base, engine, SessionLocal
 from backend.models import Setting
-from backend.routes import settings, subjects, lessons, reviews, stats, levels
+from backend.routes import settings, subjects, lessons, reviews, stats, levels, extra_study
 
 app = FastAPI(title="Kanji SRS")
 
@@ -15,6 +15,7 @@ app.include_router(lessons.router, prefix="/api")
 app.include_router(reviews.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
 app.include_router(levels.router, prefix="/api")
+app.include_router(extra_study.router, prefix="/api")
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 

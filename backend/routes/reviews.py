@@ -80,6 +80,7 @@ def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get
         item.correct_count += 1
     else:
         item.incorrect_count += 1
+        item.last_incorrect_at = time.time()
 
     intervals = _get_intervals(db)
     new_stage = item.srs_stage
