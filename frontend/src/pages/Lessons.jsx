@@ -4,7 +4,7 @@ import { api } from '../api';
 import MnemonicRenderer from '../components/MnemonicRenderer';
 import ItemCard from '../components/ItemCard';
 import TypeBadge from '../components/TypeBadge';
-import { bind, unbind } from 'wanakana';
+import { bind, unbind, isKana } from 'wanakana';
 
 export default function Lessons() {
   const [items, setItems] = useState([]);
@@ -17,6 +17,7 @@ export default function Lessons() {
   const [quizIndex, setQuizIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [quizResult, setQuizResult] = useState(null);
+  const [quizWarning, setQuizWarning] = useState(null);
   const [wrongCounts, setWrongCounts] = useState({});
   const inputRef = useRef(null);
   const boundRef = useRef(false);
@@ -206,7 +207,23 @@ export default function Lessons() {
     const checkAnswer = () => {
       const raw = inputRef.current?.value || answer;
       if (!raw.trim()) return;
-      const userAnswer = raw.trim().toLowerCase();
+      const trimmed = raw.trim();
+      const userAnswer = trimmed.toLowerCase();
+
+      if (answerType === 'meaning' && isKana(trimmed) && trimmed.length > 0) {
+        setQuizWarning("We want the meaning, not the reading");
+        setAnswer('');
+        if (inputRef.current) inputRef.current.value = '';
+        return;
+      }
+      if (answerType === 'reading' && /^[a-zA-Z\s\-']+$/.test(trimmed)) {
+        setQuizWarning("We want the reading, not the meaning");
+        setAnswer('');
+        if (inputRef.current) inputRef.current.value = '';
+        return;
+      }
+      setQuizWarning(null);
+
       let correct = false;
 
       if (answerType === 'meaning') {
@@ -215,7 +232,7 @@ export default function Lessons() {
         );
       } else {
         correct = (item.readings || []).some(
-          (r) => r.accepted_answer !== false && r.reading === userAnswer
+          (r) => r.accepted_answer !== false && r.reading === trimmed
         );
       }
 
@@ -272,9 +289,15 @@ export default function Lessons() {
             <div className="character-large">{item.characters || '?'}</div>
           </div>
 
-          <div className="review-answer-type">
+          <div className={`review-answer-type answer-type-${answerType}`}>
             {answerType === 'meaning' ? 'Meaning' : 'Reading'}
           </div>
+
+          {quizWarning && (
+            <div className="review-warning mt-1">
+              {quizWarning}
+            </div>
+          )}
 
           <div className="review-input-area">
             <input

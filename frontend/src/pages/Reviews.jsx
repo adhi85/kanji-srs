@@ -3,13 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import MnemonicRenderer from '../components/MnemonicRenderer';
 import ProgressBar from '../components/ProgressBar';
-import { bind, unbind } from 'wanakana';
+import { bind, unbind, isKana } from 'wanakana';
+
+function isAllAscii(str) {
+  return /^[a-zA-Z\s\-']+$/.test(str);
+}
 
 export default function Reviews() {
   const [queue, setQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [result, setResult] = useState(null);
+  const [warning, setWarning] = useState(null);
   const [phase, setPhase] = useState('loading');
   const [stats, setStats] = useState({ correct: 0, incorrect: 0, items: [] });
   const [wrappingUp, setWrappingUp] = useState(false);
@@ -27,7 +32,7 @@ export default function Reviews() {
       const expanded = [];
       data.forEach((item) => {
         expanded.push({ ...item, answerType: 'meaning' });
-        if (item.type !== 'radical') {
+        if (item.type !== 'radical' && item.type !== 'kana_vocabulary') {
           expanded.push({ ...item, answerType: 'reading' });
         }
       });
@@ -66,11 +71,51 @@ export default function Reviews() {
     }
   }, [currentIndex, phase, result]);
 
+  const doShake = () => {
+    setShakeClass('shake');
+    setTimeout(() => setShakeClass(''), 400);
+  };
+
   const submitAnswer = async () => {
     const raw = inputRef.current?.value || answer;
     if (!raw.trim()) return;
     const current = queue[currentIndex];
-    const resp = await api.submitReview(current.subject_id, current.answerType, raw.trim());
+    const trimmed = raw.trim();
+
+    if (current.answerType === 'meaning' && isKana(trimmed) && trimmed.length > 0) {
+      doShake();
+      setWarning("We want the meaning, not the reading");
+      setAnswer('');
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+    if (current.answerType === 'reading' && isAllAscii(trimmed)) {
+      doShake();
+      setWarning("We want the reading, not the meaning");
+      setAnswer('');
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+
+    setWarning(null);
+    const resp = await api.submitReview(current.subject_id, current.answerType, trimmed);
+
+    if (resp.retry) {
+      doShake();
+      setWarning(resp.hint);
+      setAnswer('');
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+
+    if (resp.close) {
+      doShake();
+      setWarning(`Did you mean "${resp.did_you_mean}"?`);
+      setAnswer('');
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+
     setResult(resp);
 
     if (resp.correct) {
@@ -80,8 +125,7 @@ export default function Reviews() {
         items: [...prev.items, { ...current, correct: true, new_stage: resp.new_stage }],
       }));
     } else {
-      setShakeClass('shake');
-      setTimeout(() => setShakeClass(''), 400);
+      doShake();
       setStats((prev) => ({
         ...prev,
         incorrect: prev.incorrect + 1,
@@ -93,6 +137,8 @@ export default function Reviews() {
   const nextItem = () => {
     setAnswer('');
     setResult(null);
+    setWarning(null);
+    if (inputRef.current) inputRef.current.value = '';
 
     if (wrappingUp) {
       const seenSubjects = new Set(stats.items.map((i) => i.subject_id));
@@ -112,6 +158,16 @@ export default function Reviews() {
       setPhase('summary');
     } else {
       setCurrentIndex(currentIndex + 1);
+    }
+  };
+
+  const retype = () => {
+    setAnswer('');
+    setResult(null);
+    setWarning(null);
+    if (inputRef.current) {
+      inputRef.current.value = '';
+      inputRef.current.focus();
     }
   };
 
@@ -167,7 +223,7 @@ export default function Reviews() {
             <div className="character-large">{current.characters || '?'}</div>
           </div>
 
-          <div className="review-answer-type">
+          <div className={`review-answer-type answer-type-${current.answerType}`}>
             {current.answerType === 'meaning' ? 'Meaning' : 'Reading'}
           </div>
 
@@ -179,12 +235,18 @@ export default function Reviews() {
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={current.answerType === 'reading' ? 'Reading' : 'Meaning'}
+              placeholder={current.answerType === 'reading' ? 'Type reading in hiragana' : 'Type the meaning'}
               disabled={!!result}
               autoComplete="off"
               autoCapitalize="off"
             />
           </div>
+
+          {warning && !result && (
+            <div className="review-warning mt-1">
+              {warning}
+            </div>
+          )}
 
           {result && !result.correct && (
             <div className="mt-2">
@@ -197,9 +259,16 @@ export default function Reviews() {
 
           <div className="mt-2 text-center">
             {result ? (
-              <button className={`btn ${result.correct ? 'btn-correct' : 'btn-danger'}`} onClick={nextItem}>
-                Next &#8594;
-              </button>
+              <div className="flex gap-1" style={{ justifyContent: 'center' }}>
+                {!result.correct && (
+                  <button className="btn btn-secondary" onClick={retype}>
+                    Retype
+                  </button>
+                )}
+                <button className={`btn ${result.correct ? 'btn-correct' : 'btn-danger'}`} onClick={nextItem}>
+                  Next &#8594;
+                </button>
+              </div>
             ) : (
               <button className="btn btn-primary" onClick={submitAnswer}>
                 Check

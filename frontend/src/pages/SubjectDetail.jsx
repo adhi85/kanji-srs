@@ -9,11 +9,24 @@ import SrsStageBar, { getStageName, getStageCategory } from '../components/SrsSt
 export default function SubjectDetail() {
   const { id } = useParams();
   const [subject, setSubject] = useState(null);
+  const [newSynonym, setNewSynonym] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     api.getSubject(id).then(setSubject);
   }, [id]);
+
+  const addSynonym = async () => {
+    if (!newSynonym.trim()) return;
+    await api.addSubjectSynonym(id, newSynonym.trim());
+    setNewSynonym('');
+    api.getSubject(id).then(setSubject);
+  };
+
+  const removeSynonym = async (synonymId) => {
+    await api.deleteSubjectSynonym(id, synonymId);
+    api.getSubject(id).then(setSubject);
+  };
 
   if (!subject) return <div className="text-center text-muted mt-3">Loading...</div>;
 
@@ -40,6 +53,30 @@ export default function SubjectDetail() {
                 {m.meaning}
               </span>
             ))}
+          </div>
+        </div>
+
+        <div className="detail-section">
+          <h2>User Synonyms</h2>
+          <div className="synonym-list">
+            {(subject.user_synonyms || []).map((syn) => (
+              <span key={syn.id} className="synonym-tag">
+                {syn.meaning}
+                <button className="synonym-remove" onClick={() => removeSynonym(syn.id)}>&#x2715;</button>
+              </span>
+            ))}
+          </div>
+          <div className="synonym-add mt-1">
+            <input
+              type="text"
+              className="input"
+              placeholder="Add synonym..."
+              value={newSynonym}
+              onChange={(e) => setNewSynonym(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addSynonym()}
+              style={{ width: 200 }}
+            />
+            <button className="btn btn-sm btn-secondary" onClick={addSynonym}>Add</button>
           </div>
         </div>
 
@@ -72,6 +109,9 @@ export default function SubjectDetail() {
           <div className="detail-section">
             <h2>Meaning Mnemonic</h2>
             <MnemonicRenderer text={subject.meaning_mnemonic} />
+            {subject.meaning_hint && (
+              <div className="hint-text mt-1">Hint: {subject.meaning_hint}</div>
+            )}
           </div>
         )}
 
@@ -79,6 +119,21 @@ export default function SubjectDetail() {
           <div className="detail-section">
             <h2>Reading Mnemonic</h2>
             <MnemonicRenderer text={subject.reading_mnemonic} />
+            {subject.reading_hint && (
+              <div className="hint-text mt-1">Hint: {subject.reading_hint}</div>
+            )}
+          </div>
+        )}
+
+        {subject.context_sentences && subject.context_sentences.length > 0 && (
+          <div className="detail-section">
+            <h2>Context Sentences</h2>
+            {subject.context_sentences.map((s, i) => (
+              <div key={i} className="context-sentence">
+                <div className="context-ja">{s.ja}</div>
+                <div className="context-en">{s.en}</div>
+              </div>
+            ))}
           </div>
         )}
 

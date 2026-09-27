@@ -6,6 +6,7 @@ from backend.srs_engine import (
     check_answer_meaning,
     check_answer_meaning_detailed,
     check_answer_reading,
+    check_reading_hint,
     DEFAULT_INTERVALS,
 )
 
@@ -80,9 +81,37 @@ class TestAnswerChecking:
     def test_reading_accepts_any_valid(self):
         readings = [
             {"reading": "たい", "primary": True, "type": "onyomi"},
-            {"reading": "おお", "primary": False, "type": "kunyomi"},
+            {"reading": "おお", "primary": False, "accepted_answer": True, "type": "kunyomi"},
         ]
         assert check_answer_reading("おお", readings) is True
+
+    def test_reading_rejects_non_accepted(self):
+        readings = [
+            {"reading": "いち", "primary": True, "accepted_answer": True, "type": "onyomi"},
+            {"reading": "ひと", "primary": False, "accepted_answer": False, "type": "kunyomi"},
+        ]
+        assert check_answer_reading("ひと", readings) is False
+
+    def test_reading_hint_for_non_accepted(self):
+        readings = [
+            {"reading": "いち", "primary": True, "accepted_answer": True, "type": "onyomi"},
+            {"reading": "ひと", "primary": False, "accepted_answer": False, "type": "kunyomi"},
+        ]
+        hint = check_reading_hint("ひと", readings)
+        assert hint is not None
+        assert "onyomi" in hint
+
+    def test_reading_hint_none_for_wrong_answer(self):
+        readings = [
+            {"reading": "いち", "primary": True, "accepted_answer": True, "type": "onyomi"},
+        ]
+        assert check_reading_hint("かん", readings) is None
+
+    def test_reading_hint_none_for_correct_answer(self):
+        readings = [
+            {"reading": "いち", "primary": True, "accepted_answer": True, "type": "onyomi"},
+        ]
+        assert check_reading_hint("いち", readings) is None
 
 
 class TestDetailedAnswerChecking:

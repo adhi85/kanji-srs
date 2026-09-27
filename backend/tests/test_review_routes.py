@@ -59,3 +59,38 @@ def test_one_wrong_retreats_stage(db, client):
     client.post("/api/reviews/1", json={"answer_type": "meaning", "answer": "wrong"})
     resp = client.post("/api/reviews/1", json={"answer_type": "reading", "answer": "たい"})
     assert resp.json()["new_stage"] == 1
+
+
+def _seed_with_kunyomi(db):
+    s = Subject(id=2, type="kanji", characters="一", slug="one", level=1, jlpt_level="N5",
+                meanings=json.dumps([{"meaning": "One", "primary": True}]),
+                readings=json.dumps([
+                    {"reading": "いち", "primary": True, "accepted_answer": True, "type": "onyomi"},
+                    {"reading": "ひと", "primary": False, "accepted_answer": False, "type": "kunyomi"},
+                ]),
+                meaning_mnemonic="The number one.")
+    db.add(s)
+    item = SrsItem(subject_id=2, srs_stage=2, next_review_at=time.time() - 100)
+    db.add(item)
+    db.add(Setting(key="srs_intervals", value=json.dumps(DEFAULT_INTERVALS)))
+    db.commit()
+
+
+def test_reading_hint_for_kunyomi(db, client):
+    _seed_with_kunyomi(db)
+    resp = client.post("/api/reviews/2", json={"answer_type": "reading", "answer": "ひと"})
+    data = resp.json()
+    assert data["correct"] is False
+    assert data.get("retry") is True
+    assert "onyomi" in data["hint"]
+    srs_item = db.query(SrsItem).filter_by(subject_id=2).first()
+    assert srs_item.srs_stage == 2
+    assert srs_item.incorrect_count == 0
+
+
+def test_reading_no_hint_for_wrong_answer(db, client):
+    _seed_with_kunyomi(db)
+    resp = client.post("/api/reviews/2", json={"answer_type": "reading", "answer": "かん"})
+    data = resp.json()
+    assert data["correct"] is False
+    assert data.get("retry") is not True

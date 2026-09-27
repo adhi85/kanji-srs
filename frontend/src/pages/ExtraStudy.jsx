@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import MnemonicRenderer from '../components/MnemonicRenderer';
 import ProgressBar from '../components/ProgressBar';
-import { bind, unbind } from 'wanakana';
+import { bind, unbind, isKana } from 'wanakana';
 
 const MODE_LABELS = {
   recent_mistakes: 'Recent Mistakes',
@@ -17,6 +17,7 @@ export default function ExtraStudy() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [result, setResult] = useState(null);
+  const [warning, setWarning] = useState(null);
   const [phase, setPhase] = useState('loading');
   const [stats, setStats] = useState({ correct: 0, incorrect: 0 });
   const inputRef = useRef(null);
@@ -32,7 +33,7 @@ export default function ExtraStudy() {
       const expanded = [];
       data.forEach((item) => {
         expanded.push({ ...item, answerType: 'meaning' });
-        if (item.type !== 'radical') {
+        if (item.type !== 'radical' && item.type !== 'kana_vocabulary') {
           expanded.push({ ...item, answerType: 'reading' });
         }
       });
@@ -72,9 +73,26 @@ export default function ExtraStudy() {
   }, [currentIndex, phase, result]);
 
   const submitAnswer = async () => {
-    if (!answer.trim()) return;
+    const raw = inputRef.current?.value || answer;
+    if (!raw.trim()) return;
     const current = queue[currentIndex];
-    const resp = await api.submitExtraStudy(current.subject_id, current.answerType, answer.trim());
+    const trimmed = raw.trim();
+
+    if (current.answerType === 'meaning' && isKana(trimmed) && trimmed.length > 0) {
+      setWarning("We want the meaning, not the reading");
+      setAnswer('');
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+    if (current.answerType === 'reading' && /^[a-zA-Z\s\-']+$/.test(trimmed)) {
+      setWarning("We want the reading, not the meaning");
+      setAnswer('');
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+    setWarning(null);
+
+    const resp = await api.submitExtraStudy(current.subject_id, current.answerType, trimmed);
     setResult(resp);
     setStats((prev) => ({
       correct: prev.correct + (resp.correct ? 1 : 0),
@@ -82,9 +100,20 @@ export default function ExtraStudy() {
     }));
   };
 
+  const retype = () => {
+    setAnswer('');
+    setResult(null);
+    setWarning(null);
+    if (inputRef.current) {
+      inputRef.current.value = '';
+      inputRef.current.focus();
+    }
+  };
+
   const nextItem = () => {
     setAnswer('');
     setResult(null);
+    setWarning(null);
     if (currentIndex + 1 >= queue.length) {
       setPhase('summary');
     } else {
@@ -138,9 +167,13 @@ export default function ExtraStudy() {
             <div className="character-large">{current.characters || '?'}</div>
           </div>
 
-          <div className="review-answer-type">
+          <div className={`review-answer-type answer-type-${current.answerType}`}>
             {current.answerType === 'meaning' ? 'Meaning' : 'Reading'}
           </div>
+
+          {warning && !result && (
+            <div className="review-warning mt-1">{warning}</div>
+          )}
 
           <div className="review-input-area">
             <input
@@ -150,7 +183,7 @@ export default function ExtraStudy() {
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={current.answerType === 'reading' ? 'Reading' : 'Meaning'}
+              placeholder={current.answerType === 'reading' ? 'Type reading in hiragana' : 'Type the meaning'}
               disabled={!!result}
               autoComplete="off"
               autoCapitalize="off"
@@ -168,9 +201,14 @@ export default function ExtraStudy() {
 
           <div className="mt-2 text-center">
             {result ? (
-              <button className={`btn ${result.correct ? 'btn-correct' : 'btn-danger'}`} onClick={nextItem}>
-                Next &#8594;
-              </button>
+              <div className="flex gap-1" style={{ justifyContent: 'center' }}>
+                {!result.correct && (
+                  <button className="btn btn-secondary" onClick={retype}>Retype</button>
+                )}
+                <button className={`btn ${result.correct ? 'btn-correct' : 'btn-danger'}`} onClick={nextItem}>
+                  Next &#8594;
+                </button>
+              </div>
             ) : (
               <button className="btn btn-primary" onClick={submitAnswer}>Check</button>
             )}

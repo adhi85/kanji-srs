@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import ProgressBar from '../components/ProgressBar';
+import ReviewForecast from '../components/ReviewForecast';
+import CriticalItems from '../components/CriticalItems';
 
 const SRS_STAGES = [
   { key: 'apprentice', label: 'Apprentice', stages: [1, 2, 3, 4], className: 'srs-bg-apprentice' },
@@ -14,10 +16,16 @@ const SRS_STAGES = [
 export default function Dashboard() {
   const [summary, setSummary] = useState(null);
   const [countdown, setCountdown] = useState('');
+  const [forecast, setForecast] = useState(null);
+  const [criticalItems, setCriticalItems] = useState(null);
+  const [extraStudySummary, setExtraStudySummary] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     api.getSummary().then(setSummary);
+    api.getForecast().then(setForecast);
+    api.getCriticalItems().then(setCriticalItems);
+    api.getExtraStudySummary().then(setExtraStudySummary);
   }, []);
 
   useEffect(() => {
@@ -78,6 +86,26 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {extraStudySummary && (
+        <div className="card">
+          <div className="card-header">Extra Study</div>
+          <div className="extra-study-grid">
+            <div className="extra-study-btn" onClick={() => navigate('/extra-study/recent_mistakes')}>
+              <div className="extra-study-count">{extraStudySummary.recent_mistakes}</div>
+              <div className="extra-study-label">Recent Mistakes</div>
+            </div>
+            <div className="extra-study-btn" onClick={() => navigate('/extra-study/recent_lessons')}>
+              <div className="extra-study-count">{extraStudySummary.recent_lessons}</div>
+              <div className="extra-study-label">Recent Lessons</div>
+            </div>
+            <div className="extra-study-btn" onClick={() => navigate('/extra-study/burned')}>
+              <div className="extra-study-count">{extraStudySummary.burned}</div>
+              <div className="extra-study-label">Burned Items</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <div className="card-header">SRS Stages</div>
         <div className="srs-breakdown">
@@ -92,6 +120,10 @@ export default function Dashboard() {
           })}
         </div>
       </div>
+
+      <ReviewForecast data={forecast} />
+
+      <CriticalItems items={criticalItems} />
 
       <div className="card">
         <div className="card-header">JLPT Progress</div>

@@ -22,7 +22,7 @@ def _subject_to_dict(s: Subject) -> dict:
         "meaning_mnemonic": s.meaning_mnemonic,
         "reading_mnemonic": s.reading_mnemonic,
         "part_of_speech": json.loads(s.part_of_speech) if s.part_of_speech else [],
-        "context_sentences": s.context_sentences,
+        "context_sentences": json.loads(s.context_sentences) if s.context_sentences else [],
         "meaning_hint": s.meaning_hint,
         "reading_hint": s.reading_hint,
     }

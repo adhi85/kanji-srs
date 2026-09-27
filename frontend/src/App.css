@@ -640,10 +640,29 @@ select.input {
 .review-answer-type {
   text-align: center;
   font-size: 0.85rem;
-  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+.answer-type-meaning {
+  background: #333;
+  color: #fff;
+}
+
+.answer-type-reading {
+  background: #235;
+  color: #fff;
+}
+
+.review-warning {
+  text-align: center;
+  color: #edab36;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.25rem 0;
 }
 
 /* === Feedback Animations === */
@@ -966,3 +985,221 @@ tr { cursor: pointer; }
 }
 
 .back-link:hover { color: var(--text-primary); }
+
+/* === Extra Study === */
+
+.extra-study-banner {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.extra-study-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.extra-study-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.extra-study-btn:hover {
+  border-color: var(--color-radical);
+  background: rgba(0, 170, 255, 0.05);
+}
+
+.extra-study-count {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-accent);
+}
+
+.extra-study-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* === Review Forecast === */
+
+.forecast-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 100px;
+  padding-top: 0.5rem;
+}
+
+.forecast-bar-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.forecast-count {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  height: 14px;
+  line-height: 14px;
+}
+
+.forecast-bar-track {
+  width: 100%;
+  height: 60px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.forecast-bar {
+  width: 100%;
+  background: var(--color-radical);
+  border-radius: 2px 2px 0 0;
+  min-height: 0;
+  transition: height 0.3s;
+}
+
+.forecast-label {
+  font-size: 0.55rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* === Critical Items === */
+
+.critical-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.critical-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: opacity 0.2s;
+}
+
+.critical-item:hover {
+  opacity: 0.8;
+  text-decoration: none;
+}
+
+.type-bg-radical { background: rgba(0, 170, 255, 0.15); }
+.type-bg-kanji { background: rgba(204, 0, 255, 0.15); }
+.type-bg-vocabulary { background: rgba(124, 42, 232, 0.15); }
+
+.critical-item-char {
+  font-size: 1.3rem;
+  font-weight: 700;
+  width: 2rem;
+  text-align: center;
+}
+
+.critical-item-meaning {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.critical-item-rate {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-incorrect);
+}
+
+/* === Typo close state === */
+
+.input.close {
+  border-color: #edab36;
+  background: rgba(237, 171, 54, 0.1);
+}
+
+/* === Context Sentences === */
+
+.context-sentence {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.context-sentence:last-child {
+  border-bottom: none;
+}
+
+.context-ja {
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
+.context-en {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* === Synonyms === */
+
+.synonym-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.synonym-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.synonym-remove {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.synonym-remove:hover {
+  color: var(--color-incorrect);
+}
+
+/* === Hints === */
+
+.hint-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.synonym-add {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
