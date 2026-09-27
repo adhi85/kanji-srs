@@ -35,12 +35,22 @@ def check_answer_meaning_detailed(
     answer: str,
     meanings: list[dict],
     synonyms: list[str] | None = None,
+    auxiliary_meanings: list[dict] | None = None,
 ) -> dict:
     answer_lower = answer.strip().lower()
+
+    if auxiliary_meanings:
+        for a in auxiliary_meanings:
+            if a.get("type") == "blacklist" and answer_lower == a["meaning"].strip().lower():
+                return {"status": "incorrect"}
 
     all_accepted = [m["meaning"] for m in meanings if m.get("accepted_answer", True)]
     if synonyms:
         all_accepted.extend(synonyms)
+    if auxiliary_meanings:
+        all_accepted.extend(
+            a["meaning"] for a in auxiliary_meanings if a.get("type") != "blacklist"
+        )
 
     for accepted in all_accepted:
         if answer_lower == accepted.strip().lower():

@@ -65,7 +65,8 @@ def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get
 
     if req.answer_type == "meaning":
         user_syns = [s.meaning for s in db.query(UserSynonym).filter_by(subject_id=subject_id).all()]
-        detailed = check_answer_meaning_detailed(req.answer, meanings, user_syns or None)
+        aux_meanings = json.loads(subject.auxiliary_meanings) if subject.auxiliary_meanings else []
+        detailed = check_answer_meaning_detailed(req.answer, meanings, user_syns or None, auxiliary_meanings=aux_meanings or None)
         correct = detailed["status"] == "correct"
         close = detailed["status"] == "close"
         correct_answer = next((m["meaning"] for m in meanings if m.get("primary")), meanings[0]["meaning"])

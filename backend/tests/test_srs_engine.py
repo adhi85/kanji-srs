@@ -146,3 +146,15 @@ class TestDetailedAnswerChecking:
         synonyms = ["Huge", "Enormous"]
         result = check_answer_meaning_detailed("huge", meanings, synonyms)
         assert result["status"] == "correct"
+
+    def test_auxiliary_meanings_whitelist_accepted(self):
+        meanings = [{"meaning": "Girl", "primary": True}]
+        aux = [{"meaning": "Woman", "type": "whitelist"}]
+        result = check_answer_meaning_detailed("woman", meanings, auxiliary_meanings=aux)
+        assert result["status"] == "correct"
+
+    def test_auxiliary_meanings_blacklist_rejected(self):
+        meanings = [{"meaning": "Girl", "primary": True}]
+        aux = [{"meaning": "Female", "type": "blacklist"}]
+        result = check_answer_meaning_detailed("female", meanings, auxiliary_meanings=aux)
+        assert result["status"] == "incorrect"
