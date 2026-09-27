@@ -6,17 +6,19 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import case, func
 from backend.database import get_db
-from backend.models import Subject, SrsItem, LevelEvent
+from backend.models import Subject, SrsItem, LevelEvent, User
+from backend.auth import get_current_user
 
 router = APIRouter()
 
 
 @router.get("/summary")
-def get_summary(db: Session = Depends(get_db)):
+def get_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     now = time.time()
 
     reviews_available = (
         db.query(func.count(SrsItem.id))
+        .filter(SrsItem.user_id == current_user.id)
         .filter(SrsItem.srs_stage.between(1, 8))
         .filter(SrsItem.next_review_at <= now)
         .scalar()
@@ -24,6 +26,7 @@ def get_summary(db: Session = Depends(get_db)):
 
     next_review = (
         db.query(func.min(SrsItem.next_review_at))
+        .filter(SrsItem.user_id == current_user.id)
         .filter(SrsItem.srs_stage.between(1, 8))
         .filter(SrsItem.next_review_at > now)
         .scalar()
@@ -31,12 +34,18 @@ def get_summary(db: Session = Depends(get_db)):
 
     lessons_available = (
         db.query(func.count(SrsItem.id))
+        .filter(SrsItem.user_id == current_user.id)
         .filter(SrsItem.srs_stage == 0)
         .scalar()
     )
 
     stage_counts = defaultdict(int)
-    rows = db.query(SrsItem.srs_stage, func.count(SrsItem.id)).group_by(SrsItem.srs_stage).all()
+    rows = (
+        db.query(SrsItem.srs_stage, func.count(SrsItem.id))
+        .filter(SrsItem.user_id == current_user.id)
+        .group_by(SrsItem.srs_stage)
+        .all()
+    )
     for stage, count in rows:
         stage_counts[str(stage)] = count
 
@@ -51,6 +60,7 @@ def get_summary(db: Session = Depends(get_db)):
             burned = (
                 db.query(func.count(SrsItem.id))
                 .join(Subject)
+                .filter(SrsItem.user_id == current_user.id)
                 .filter(Subject.jlpt_level == level, SrsItem.srs_stage == 9)
                 .scalar()
             )
@@ -62,7 +72,7 @@ def get_summary(db: Session = Depends(get_db)):
             func.count(Subject.id).label("total"),
             func.sum(case((SrsItem.srs_stage >= 5, 1), else_=0)).label("passed"),
         )
-        .outerjoin(SrsItem)
+        .outerjoin(SrsItem, (SrsItem.subject_id == Subject.id) & (SrsItem.user_id == current_user.id))
         .filter(Subject.type == "kanji")
         .group_by(Subject.level)
         .all()
@@ -85,7 +95,7 @@ def get_summary(db: Session = Depends(get_db)):
             func.count(Subject.id).label("total"),
             func.sum(case((SrsItem.srs_stage >= 5, 1), else_=0)).label("passed"),
         )
-        .outerjoin(SrsItem)
+        .outerjoin(SrsItem, (SrsItem.subject_id == Subject.id) & (SrsItem.user_id == current_user.id))
         .filter(Subject.level == current_level)
         .group_by(Subject.type)
         .all()
@@ -117,12 +127,13 @@ def get_summary(db: Session = Depends(get_db)):
 
 
 @router.get("/forecast")
-def get_forecast(db: Session = Depends(get_db)):
+def get_forecast(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     now = time.time()
     now_dt = datetime.fromtimestamp(now, tz=timezone.utc)
 
     items = (
         db.query(SrsItem.next_review_at)
+        .filter(SrsItem.user_id == current_user.id)
         .filter(SrsItem.srs_stage.between(1, 8))
         .filter(SrsItem.next_review_at > now)
         .filter(SrsItem.next_review_at <= now + 5 * 86400)
@@ -158,10 +169,11 @@ def get_forecast(db: Session = Depends(get_db)):
 
 
 @router.get("/critical-items")
-def get_critical_items(limit: int = Query(10, ge=0), db: Session = Depends(get_db)):
+def get_critical_items(limit: int = Query(10, ge=0), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     items = (
         db.query(SrsItem)
         .join(Subject)
+        .filter(SrsItem.user_id == current_user.id)
         .filter(SrsItem.incorrect_count >= 4)
         .filter(SrsItem.srs_stage.between(1, 8))
         .all()
@@ -188,11 +200,12 @@ def get_critical_items(limit: int = Query(10, ge=0), db: Session = Depends(get_d
 
 
 @router.get("/recently-unlocked")
-def get_recently_unlocked(db: Session = Depends(get_db)):
+def get_recently_unlocked(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     cutoff = time.time() - 172800
     items = (
         db.query(SrsItem)
         .join(Subject)
+        .filter(SrsItem.user_id == current_user.id)
         .filter(SrsItem.started_at != None, SrsItem.started_at >= cutoff)
         .order_by(SrsItem.started_at.desc())
         .limit(10)
@@ -211,6 +224,6 @@ def get_recently_unlocked(db: Session = Depends(get_db)):
 
 
 @router.get("/level-history")
-def get_level_history(db: Session = Depends(get_db)):
-    events = db.query(LevelEvent).order_by(LevelEvent.level.asc()).all()
+def get_level_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    events = db.query(LevelEvent).filter_by(user_id=current_user.id).order_by(LevelEvent.level.asc()).all()
     return [{"level": e.level, "reached_at": e.reached_at} for e in events]

@@ -2,7 +2,7 @@ import json
 from backend.models import Subject, SubjectDependency, SrsItem
 
 
-def _seed(db):
+def _seed(db, user):
     subjects = [
         Subject(id=1, type="radical", characters="一", slug="one", level=1, jlpt_level="N5",
                 meanings=json.dumps([{"meaning": "One", "primary": True}])),
@@ -19,41 +19,41 @@ def _seed(db):
     db.add_all(subjects)
     db.add(SubjectDependency(subject_id=2, component_id=1))
     for s in subjects:
-        db.add(SrsItem(subject_id=s.id))
+        db.add(SrsItem(user_id=user.id, subject_id=s.id))
     db.commit()
 
 
-def test_list_subjects(db, client):
-    _seed(db)
+def test_list_subjects(db, client, test_user):
+    _seed(db, test_user)
     resp = client.get("/api/subjects")
     assert resp.status_code == 200
     assert len(resp.json()["items"]) == 4
 
 
-def test_filter_by_jlpt(db, client):
-    _seed(db)
+def test_filter_by_jlpt(db, client, test_user):
+    _seed(db, test_user)
     resp = client.get("/api/subjects?jlpt=N5")
     assert resp.status_code == 200
     assert len(resp.json()["items"]) == 4
 
 
-def test_filter_by_type(db, client):
-    _seed(db)
+def test_filter_by_type(db, client, test_user):
+    _seed(db, test_user)
     resp = client.get("/api/subjects?type=kanji")
     assert resp.status_code == 200
     assert len(resp.json()["items"]) == 2
 
 
-def test_search_by_query(db, client):
-    _seed(db)
+def test_search_by_query(db, client, test_user):
+    _seed(db, test_user)
     resp = client.get("/api/subjects?q=big")
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert any(i["characters"] == "大" for i in items)
 
 
-def test_get_subject_detail(db, client):
-    _seed(db)
+def test_get_subject_detail(db, client, test_user):
+    _seed(db, test_user)
     resp = client.get("/api/subjects/2")
     assert resp.status_code == 200
     data = resp.json()
@@ -62,8 +62,8 @@ def test_get_subject_detail(db, client):
     assert data["components"][0]["characters"] == "一"
 
 
-def test_subject_detail_includes_used_in(db, client):
-    _seed(db)
+def test_subject_detail_includes_used_in(db, client, test_user):
+    _seed(db, test_user)
     resp = client.get("/api/subjects/1")
     data = resp.json()
     assert "used_in" in data
@@ -72,7 +72,7 @@ def test_subject_detail_includes_used_in(db, client):
     assert data["used_in"][0]["characters"] == "大"
 
 
-def test_subject_detail_includes_visually_similar(db, client):
+def test_subject_detail_includes_visually_similar(db, client, test_user):
     db.add(Subject(id=10, type="kanji", characters="大", slug="big2", level=1, jlpt_level="N5",
                    meanings=json.dumps([{"meaning": "Big", "primary": True}]),
                    readings=json.dumps([{"reading": "たい", "primary": True}]),
@@ -80,8 +80,8 @@ def test_subject_detail_includes_visually_similar(db, client):
     db.add(Subject(id=11, type="kanji", characters="太", slug="fat", level=1, jlpt_level="N5",
                    meanings=json.dumps([{"meaning": "Fat", "primary": True}]),
                    readings=json.dumps([{"reading": "ふと", "primary": True}])))
-    db.add(SrsItem(subject_id=10))
-    db.add(SrsItem(subject_id=11))
+    db.add(SrsItem(user_id=test_user.id, subject_id=10))
+    db.add(SrsItem(user_id=test_user.id, subject_id=11))
     db.commit()
 
     resp = client.get("/api/subjects/10")

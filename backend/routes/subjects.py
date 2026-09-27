@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import Subject, SubjectDependency, SrsItem, UserSynonym
+from backend.models import Subject, SubjectDependency, SrsItem, UserSynonym, User
+from backend.auth import get_current_user
 
 router = APIRouter()
 
@@ -37,6 +38,7 @@ def list_subjects(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     query = db.query(Subject)
     if jlpt:
@@ -54,7 +56,7 @@ def list_subjects(
 
 
 @router.get("/subjects/{subject_id}")
-def get_subject(subject_id: int, db: Session = Depends(get_db)):
+def get_subject(subject_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     subject = db.get(Subject, subject_id)
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
@@ -79,7 +81,7 @@ def get_subject(subject_id: int, db: Session = Depends(get_db)):
                 "meanings": json.loads(vs.meanings),
             })
     result["visually_similar"] = vis_similar
-    srs = db.query(SrsItem).filter_by(subject_id=subject_id).first()
+    srs = db.query(SrsItem).filter_by(user_id=current_user.id, subject_id=subject_id).first()
     if srs:
         result["srs"] = {
             "srs_stage": srs.srs_stage,
@@ -87,7 +89,7 @@ def get_subject(subject_id: int, db: Session = Depends(get_db)):
             "incorrect_count": srs.incorrect_count,
             "next_review_at": srs.next_review_at,
         }
-    synonyms = db.query(UserSynonym).filter_by(subject_id=subject_id).all()
+    synonyms = db.query(UserSynonym).filter_by(user_id=current_user.id, subject_id=subject_id).all()
     result["user_synonyms"] = [
         {"id": s.id, "meaning": s.meaning} for s in synonyms
     ]
@@ -99,24 +101,24 @@ class SynonymRequest(BaseModel):
 
 
 @router.get("/subjects/{subject_id}/synonyms")
-def list_synonyms(subject_id: int, db: Session = Depends(get_db)):
+def list_synonyms(subject_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return [
         {"id": s.id, "subject_id": s.subject_id, "meaning": s.meaning}
-        for s in db.query(UserSynonym).filter_by(subject_id=subject_id).all()
+        for s in db.query(UserSynonym).filter_by(user_id=current_user.id, subject_id=subject_id).all()
     ]
 
 
 @router.post("/subjects/{subject_id}/synonyms")
-def add_synonym(subject_id: int, req: SynonymRequest, db: Session = Depends(get_db)):
+def add_synonym(subject_id: int, req: SynonymRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     subject = db.get(Subject, subject_id)
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
     existing = db.query(UserSynonym).filter_by(
-        subject_id=subject_id, meaning=req.meaning
+        user_id=current_user.id, subject_id=subject_id, meaning=req.meaning
     ).first()
     if existing:
         raise HTTPException(status_code=409, detail="Synonym already exists")
-    syn = UserSynonym(subject_id=subject_id, meaning=req.meaning)
+    syn = UserSynonym(user_id=current_user.id, subject_id=subject_id, meaning=req.meaning)
     db.add(syn)
     db.commit()
     db.refresh(syn)
@@ -124,8 +126,8 @@ def add_synonym(subject_id: int, req: SynonymRequest, db: Session = Depends(get_
 
 
 @router.post("/subjects/{subject_id}/reset")
-def reset_subject(subject_id: int, db: Session = Depends(get_db)):
-    item = db.query(SrsItem).filter_by(subject_id=subject_id).first()
+def reset_subject(subject_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    item = db.query(SrsItem).filter_by(user_id=current_user.id, subject_id=subject_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="SRS item not found")
     if item.srs_stage < 1:
@@ -143,9 +145,9 @@ def reset_subject(subject_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/subjects/{subject_id}/resurrect")
-def resurrect_subject(subject_id: int, db: Session = Depends(get_db)):
+def resurrect_subject(subject_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     import time as _time
-    item = db.query(SrsItem).filter_by(subject_id=subject_id).first()
+    item = db.query(SrsItem).filter_by(user_id=current_user.id, subject_id=subject_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="SRS item not found")
     if item.srs_stage != 9:
@@ -164,8 +166,8 @@ def resurrect_subject(subject_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/subjects/{subject_id}/synonyms/{synonym_id}")
-def delete_synonym(subject_id: int, synonym_id: int, db: Session = Depends(get_db)):
-    syn = db.query(UserSynonym).filter_by(id=synonym_id, subject_id=subject_id).first()
+def delete_synonym(subject_id: int, synonym_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    syn = db.query(UserSynonym).filter_by(id=synonym_id, user_id=current_user.id, subject_id=subject_id).first()
     if not syn:
         raise HTTPException(status_code=404, detail="Synonym not found")
     db.delete(syn)

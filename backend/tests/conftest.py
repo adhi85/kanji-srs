@@ -1,9 +1,11 @@
+import time
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from backend.database import Base, get_db
-from backend.models import Subject, SubjectDependency, SrsItem, Setting, UserSynonym, LevelEvent  # noqa: F401
+from backend.models import Subject, SubjectDependency, SrsItem, Setting, UserSynonym, LevelEvent, User  # noqa: F401
+from backend.auth import hash_password, create_access_token
 from backend.main import app
 
 engine = create_engine(
@@ -40,6 +42,18 @@ def db():
 
 
 @pytest.fixture
-def client():
+def test_user(db):
+    user = User(username="testuser", password_hash=hash_password("testpass"), created_at=time.time())
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture
+def client(test_user):
     from fastapi.testclient import TestClient
-    return TestClient(app)
+    token = create_access_token(test_user.id, test_user.username)
+    c = TestClient(app)
+    c.headers["Authorization"] = f"Bearer {token}"
+    return c

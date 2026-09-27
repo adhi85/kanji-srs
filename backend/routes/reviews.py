@@ -5,8 +5,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from sqlalchemy import func
-from backend.models import Subject, SrsItem, Setting, UserSynonym, SubjectDependency, LevelEvent
+from backend.models import Subject, SrsItem, Setting, UserSynonym, SubjectDependency, LevelEvent, User
 from backend.routes.levels import compute_current_level
+from backend.auth import get_current_user
 from backend.srs_engine import (
     advance_stage,
     retreat_stage,
@@ -21,17 +22,18 @@ from backend.srs_engine import (
 router = APIRouter()
 
 
-def _get_intervals(db: Session) -> list:
-    row = db.query(Setting).filter_by(key="srs_intervals").first()
+def _get_intervals(db: Session, user_id: int) -> list:
+    row = db.query(Setting).filter_by(user_id=user_id, key="srs_intervals").first()
     return json.loads(row.value) if row else DEFAULT_INTERVALS
 
 
 @router.get("/reviews")
-def get_reviews(db: Session = Depends(get_db)):
+def get_reviews(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     now = time.time()
     items = (
         db.query(SrsItem)
         .join(Subject)
+        .filter(SrsItem.user_id == current_user.id)
         .filter(SrsItem.srs_stage.between(1, 8))
         .filter(SrsItem.next_review_at <= now)
         .order_by(SrsItem.next_review_at)
@@ -50,7 +52,7 @@ def get_reviews(db: Session = Depends(get_db)):
                     "meanings": json.loads(c.meanings),
                 })
         synonyms = [{"id": syn.id, "meaning": syn.meaning}
-                     for syn in db.query(UserSynonym).filter_by(subject_id=s.id).all()]
+                     for syn in db.query(UserSynonym).filter_by(user_id=current_user.id, subject_id=s.id).all()]
         results.append({
             "srs_item_id": item.id,
             "subject_id": item.subject_id,
@@ -75,8 +77,8 @@ class AnswerRequest(BaseModel):
 
 
 @router.post("/reviews/{subject_id}")
-def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get_db)):
-    item = db.query(SrsItem).filter_by(subject_id=subject_id).first()
+def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    item = db.query(SrsItem).filter_by(user_id=current_user.id, subject_id=subject_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="SRS item not found")
     subject = db.get(Subject, subject_id)
@@ -87,7 +89,7 @@ def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get
     readings = json.loads(subject.readings) if subject.readings else []
 
     if req.answer_type == "meaning":
-        user_syns = [s.meaning for s in db.query(UserSynonym).filter_by(subject_id=subject_id).all()]
+        user_syns = [s.meaning for s in db.query(UserSynonym).filter_by(user_id=current_user.id, subject_id=subject_id).all()]
         aux_meanings = json.loads(subject.auxiliary_meanings) if subject.auxiliary_meanings else []
         detailed = check_answer_meaning_detailed(req.answer, meanings, user_syns or None, auxiliary_meanings=aux_meanings or None)
         correct = detailed["status"] == "correct"
@@ -135,7 +137,7 @@ def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get
         item.incorrect_count += 1
         item.last_incorrect_at = time.time()
 
-    intervals = _get_intervals(db)
+    intervals = _get_intervals(db, current_user.id)
     new_stage = item.srs_stage
     both_needed = subject.type not in ("radical", "kana_vocabulary")
     meaning_done = item.meaning_correct_in_session == 1
@@ -159,10 +161,10 @@ def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get
 
     level_up = None
     if meaning_done and reading_done:
-        current_level = compute_current_level(db)
-        max_recorded = db.query(func.max(LevelEvent.level)).scalar() or 0
+        current_level = compute_current_level(db, current_user.id)
+        max_recorded = db.query(func.max(LevelEvent.level)).filter(LevelEvent.user_id == current_user.id).scalar() or 0
         if current_level > max_recorded:
-            db.add(LevelEvent(level=current_level, reached_at=time.time()))
+            db.add(LevelEvent(user_id=current_user.id, level=current_level, reached_at=time.time()))
             db.commit()
             level_up = {"new_level": current_level}
 

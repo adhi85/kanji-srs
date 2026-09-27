@@ -1,6 +1,15 @@
-from sqlalchemy import Column, Integer, Text, Float, ForeignKey
+from sqlalchemy import Column, Integer, Text, Float, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from backend.database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(Text, unique=True, nullable=False)
+    password_hash = Column(Text, nullable=False)
+    created_at = Column(Float, nullable=False)
 
 
 class Subject(Base):
@@ -24,7 +33,7 @@ class Subject(Base):
     auxiliary_meanings = Column(Text, nullable=True)
     visually_similar_subject_ids = Column(Text, nullable=True)
 
-    srs_item = relationship("SrsItem", back_populates="subject", uselist=False)
+    srs_items = relationship("SrsItem", back_populates="subject")
     components = relationship(
         "Subject",
         secondary="subject_dependencies",
@@ -45,7 +54,8 @@ class SrsItem(Base):
     __tablename__ = "srs_items"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    subject_id = Column(Integer, ForeignKey("subjects.id"), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False)
     srs_stage = Column(Integer, nullable=False, default=0)
     unlocked_at = Column(Float, nullable=True)
     started_at = Column(Float, nullable=True)
@@ -57,12 +67,16 @@ class SrsItem(Base):
     last_incorrect_at = Column(Float, nullable=True)
     incorrect_in_session = Column(Integer, default=0)
 
-    subject = relationship("Subject", back_populates="srs_item")
+    subject = relationship("Subject", back_populates="srs_items")
+    user = relationship("User")
+
+    __table_args__ = (UniqueConstraint("user_id", "subject_id"),)
 
 
 class Setting(Base):
     __tablename__ = "settings"
 
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     key = Column(Text, primary_key=True)
     value = Column(Text, nullable=False)
 
@@ -71,13 +85,19 @@ class LevelEvent(Base):
     __tablename__ = "level_events"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    level = Column(Integer, unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    level = Column(Integer, nullable=False)
     reached_at = Column(Float, nullable=False)
+
+    __table_args__ = (UniqueConstraint("user_id", "level"),)
 
 
 class UserSynonym(Base):
     __tablename__ = "user_synonyms"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False)
     meaning = Column(Text, nullable=False)
+
+    __table_args__ = (UniqueConstraint("user_id", "subject_id", "meaning"),)

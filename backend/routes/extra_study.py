@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import Subject, SrsItem
+from backend.models import Subject, SrsItem, User
+from backend.auth import get_current_user
 from backend.srs_engine import check_answer_meaning, check_answer_reading
 
 router = APIRouter()
@@ -13,21 +14,28 @@ TWENTY_FOUR_HOURS = 86400
 
 
 @router.get("/extra-study/summary")
-def extra_study_summary(db: Session = Depends(get_db)):
+def extra_study_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     now = time.time()
     cutoff = now - TWENTY_FOUR_HOURS
     recent_mistakes = (
         db.query(SrsItem)
+        .filter(SrsItem.user_id == current_user.id)
         .filter(SrsItem.last_incorrect_at != None, SrsItem.last_incorrect_at >= cutoff)
         .count()
     )
     recent_lessons = (
         db.query(SrsItem)
+        .filter(SrsItem.user_id == current_user.id)
         .filter(SrsItem.started_at != None, SrsItem.started_at >= cutoff,
                 SrsItem.srs_stage >= 1)
         .count()
     )
-    burned = db.query(SrsItem).filter(SrsItem.srs_stage == 9).count()
+    burned = (
+        db.query(SrsItem)
+        .filter(SrsItem.user_id == current_user.id)
+        .filter(SrsItem.srs_stage == 9)
+        .count()
+    )
     return {
         "recent_mistakes": recent_mistakes,
         "recent_lessons": recent_lessons,
@@ -36,19 +44,21 @@ def extra_study_summary(db: Session = Depends(get_db)):
 
 
 @router.get("/extra-study")
-def get_extra_study(mode: str = Query(...), db: Session = Depends(get_db)):
+def get_extra_study(mode: str = Query(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     now = time.time()
     cutoff = now - TWENTY_FOUR_HOURS
 
     if mode == "recent_mistakes":
         items = (
             db.query(SrsItem).join(Subject)
+            .filter(SrsItem.user_id == current_user.id)
             .filter(SrsItem.last_incorrect_at != None, SrsItem.last_incorrect_at >= cutoff)
             .all()
         )
     elif mode == "recent_lessons":
         items = (
             db.query(SrsItem).join(Subject)
+            .filter(SrsItem.user_id == current_user.id)
             .filter(SrsItem.started_at != None, SrsItem.started_at >= cutoff,
                     SrsItem.srs_stage >= 1)
             .all()
@@ -56,6 +66,7 @@ def get_extra_study(mode: str = Query(...), db: Session = Depends(get_db)):
     elif mode == "burned":
         items = (
             db.query(SrsItem).join(Subject)
+            .filter(SrsItem.user_id == current_user.id)
             .filter(SrsItem.srs_stage == 9)
             .all()
         )
@@ -79,7 +90,7 @@ class ExtraStudyAnswer(BaseModel):
 
 @router.post("/extra-study/{subject_id}")
 def submit_extra_study(subject_id: int, req: ExtraStudyAnswer,
-                       db: Session = Depends(get_db)):
+                       db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     subject = db.get(Subject, subject_id)
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")

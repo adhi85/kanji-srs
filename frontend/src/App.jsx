@@ -1,9 +1,10 @@
-import { BrowserRouter, Routes, Route, NavLink, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Link, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'sonner';
-import { LayoutDashboard, BookOpen, RotateCcw, Library, Settings as SettingsIcon } from 'lucide-react';
+import { LayoutDashboard, BookOpen, RotateCcw, Library, Settings as SettingsIcon, LogOut } from 'lucide-react';
 import { api } from './api';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Dashboard from './pages/Dashboard';
 import Lessons from './pages/Lessons';
 import Reviews from './pages/Reviews';
@@ -12,6 +13,8 @@ import SubjectDetail from './pages/SubjectDetail';
 import LevelDetail from './pages/LevelDetail';
 import Settings from './pages/Settings';
 import ExtraStudy from './pages/ExtraStudy';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import './App.css';
 
 const pageVariants = {
@@ -24,6 +27,18 @@ const pageTransition = {
   duration: 0.2,
   ease: [0.4, 0, 0.2, 1],
 };
+
+function ProtectedRoute({ children }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
+
+function PublicRoute({ children }) {
+  const { user } = useAuth();
+  if (user) return <Navigate to="/" replace />;
+  return children;
+}
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -39,14 +54,16 @@ function AnimatedRoutes() {
         transition={pageTransition}
       >
         <Routes location={location}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/lessons" element={<Lessons />} />
-          <Route path="/reviews" element={<Reviews />} />
-          <Route path="/subjects" element={<Subjects />} />
-          <Route path="/subjects/:id" element={<SubjectDetail />} />
-          <Route path="/levels/:level" element={<LevelDetail />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/extra-study/:mode" element={<ExtraStudy />} />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/lessons" element={<ProtectedRoute><Lessons /></ProtectedRoute>} />
+          <Route path="/reviews" element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
+          <Route path="/subjects" element={<ProtectedRoute><Subjects /></ProtectedRoute>} />
+          <Route path="/subjects/:id" element={<ProtectedRoute><SubjectDetail /></ProtectedRoute>} />
+          <Route path="/levels/:level" element={<ProtectedRoute><LevelDetail /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/extra-study/:mode" element={<ProtectedRoute><ExtraStudy /></ProtectedRoute>} />
         </Routes>
       </motion.div>
     </AnimatePresence>
@@ -54,15 +71,19 @@ function AnimatedRoutes() {
 }
 
 function Nav() {
+  const { user, logout } = useAuth();
   const [summary, setSummary] = useState(null);
 
   useEffect(() => {
+    if (!user) return;
     api.getSummary().then(setSummary).catch(() => {});
     const interval = setInterval(() => {
       api.getSummary().then(setSummary).catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
+
+  if (!user) return null;
 
   const reviews = summary?.reviews_available || 0;
   const lessons = summary?.lessons_available || 0;
@@ -102,6 +123,12 @@ function Nav() {
           </li>
         ))}
       </ul>
+      <div className="nav-user">
+        <span className="nav-username">{user.username}</span>
+        <button className="nav-logout" onClick={logout} title="Log out">
+          <LogOut size={15} strokeWidth={2.2} />
+        </button>
+      </div>
     </nav>
   );
 }
@@ -109,23 +136,25 @@ function Nav() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          style: {
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-color-strong)',
-            color: 'var(--text-primary)',
-            fontFamily: 'inherit',
-            fontSize: '0.88rem',
-          },
-        }}
-        gap={8}
-      />
-      <Nav />
-      <main className="main">
-        <AnimatedRoutes />
-      </main>
+      <AuthProvider>
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            style: {
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color-strong)',
+              color: 'var(--text-primary)',
+              fontFamily: 'inherit',
+              fontSize: '0.88rem',
+            },
+          }}
+          gap={8}
+        />
+        <Nav />
+        <main className="main">
+          <AnimatedRoutes />
+        </main>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

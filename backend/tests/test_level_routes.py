@@ -1,7 +1,7 @@
 import json
 
 
-def _seed_level(db, level, num_kanji=3, num_radical=1, num_vocab=2):
+def _seed_level(db, user, level, num_kanji=3, num_radical=1, num_vocab=2):
     from backend.models import Subject, SrsItem
     ids = []
     counter = level * 100
@@ -11,7 +11,7 @@ def _seed_level(db, level, num_kanji=3, num_radical=1, num_vocab=2):
                     level=level, meanings=json.dumps([{"meaning": f"Rad{counter}", "primary": True}]))
         db.add(s)
         db.flush()
-        db.add(SrsItem(subject_id=s.id, srs_stage=0))
+        db.add(SrsItem(user_id=user.id, subject_id=s.id, srs_stage=0))
         ids.append(s.id)
     for i in range(num_kanji):
         counter += 1
@@ -20,7 +20,7 @@ def _seed_level(db, level, num_kanji=3, num_radical=1, num_vocab=2):
                     readings=json.dumps([{"reading": "か", "primary": True}]))
         db.add(s)
         db.flush()
-        db.add(SrsItem(subject_id=s.id, srs_stage=0))
+        db.add(SrsItem(user_id=user.id, subject_id=s.id, srs_stage=0))
         ids.append(s.id)
     for i in range(num_vocab):
         counter += 1
@@ -29,7 +29,7 @@ def _seed_level(db, level, num_kanji=3, num_radical=1, num_vocab=2):
                     readings=json.dumps([{"reading": "か", "primary": True}]))
         db.add(s)
         db.flush()
-        db.add(SrsItem(subject_id=s.id, srs_stage=0))
+        db.add(SrsItem(user_id=user.id, subject_id=s.id, srs_stage=0))
         ids.append(s.id)
     db.commit()
     return ids
@@ -43,9 +43,9 @@ def test_get_levels_empty(client):
     assert data["levels"] == []
 
 
-def test_get_levels_with_data(client, db):
-    _seed_level(db, 1)
-    _seed_level(db, 2)
+def test_get_levels_with_data(client, db, test_user):
+    _seed_level(db, test_user, 1)
+    _seed_level(db, test_user, 2)
     resp = client.get("/api/levels")
     data = resp.json()
     assert data["current_level"] == 1
@@ -57,10 +57,10 @@ def test_get_levels_with_data(client, db):
     assert lvl1["vocab_count"] == 2
 
 
-def test_current_level_advances(client, db):
+def test_current_level_advances(client, db, test_user):
     from backend.models import SrsItem
-    _seed_level(db, 1, num_kanji=3)
-    _seed_level(db, 2, num_kanji=3)
+    _seed_level(db, test_user, 1, num_kanji=3)
+    _seed_level(db, test_user, 2, num_kanji=3)
     kanji_items = db.query(SrsItem).join(SrsItem.subject).filter(
         SrsItem.subject.has(type="kanji", level=1)).all()
     for item in kanji_items:
@@ -70,8 +70,8 @@ def test_current_level_advances(client, db):
     assert resp.json()["current_level"] == 2
 
 
-def test_get_level_detail(client, db):
-    _seed_level(db, 1)
+def test_get_level_detail(client, db, test_user):
+    _seed_level(db, test_user, 1)
     resp = client.get("/api/levels/1")
     assert resp.status_code == 200
     data = resp.json()

@@ -1,15 +1,33 @@
 const BASE = '/api';
 
+function getToken() {
+  return localStorage.getItem('token');
+}
+
 async function request(path, options = {}) {
-  const resp = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const resp = await fetch(`${BASE}${path}`, { headers, ...options });
+  if (resp.status === 401) {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
   if (!resp.ok) throw new Error(`API error: ${resp.status}`);
   return resp.json();
 }
 
 export const api = {
+  register: (username, password) => request('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  }),
+  login: (username, password) => request('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  }),
+  me: () => request('/auth/me'),
   getSummary: () => request('/summary'),
   getLessons: () => request('/lessons'),
   startLessons: (ids) => request('/lessons/start', {

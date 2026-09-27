@@ -5,19 +5,20 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
-from backend.models import Subject, SrsItem
+from backend.models import Subject, SrsItem, User
+from backend.auth import get_current_user
 
 router = APIRouter()
 
 
-def compute_current_level(db: Session) -> int:
+def compute_current_level(db: Session, user_id: int) -> int:
     rows = (
         db.query(
             Subject.level,
             func.count(Subject.id).label("total"),
             func.sum(case((SrsItem.srs_stage >= 5, 1), else_=0)).label("passed"),
         )
-        .outerjoin(SrsItem)
+        .outerjoin(SrsItem, (SrsItem.subject_id == Subject.id) & (SrsItem.user_id == user_id))
         .filter(Subject.type == "kanji")
         .group_by(Subject.level)
         .all()
@@ -36,8 +37,8 @@ def compute_current_level(db: Session) -> int:
 
 
 @router.get("/levels")
-def get_levels(db: Session = Depends(get_db)):
-    current = compute_current_level(db)
+def get_levels(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    current = compute_current_level(db, current_user.id)
     rows = (
         db.query(
             Subject.level,
@@ -45,7 +46,7 @@ def get_levels(db: Session = Depends(get_db)):
             func.count(Subject.id).label("count"),
             func.sum(case((SrsItem.srs_stage >= 5, 1), else_=0)).label("passed"),
         )
-        .outerjoin(SrsItem)
+        .outerjoin(SrsItem, (SrsItem.subject_id == Subject.id) & (SrsItem.user_id == current_user.id))
         .group_by(Subject.level, Subject.type)
         .all()
     )
@@ -68,13 +69,19 @@ def get_levels(db: Session = Depends(get_db)):
 
 
 @router.get("/levels/{level}")
-def get_level_detail(level: int, db: Session = Depends(get_db)):
+def get_level_detail(level: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     subjects = (
         db.query(Subject)
-        .outerjoin(SrsItem)
         .filter(Subject.level == level)
         .all()
     )
+    srs_map = {
+        item.subject_id: item.srs_stage
+        for item in db.query(SrsItem).filter(
+            SrsItem.user_id == current_user.id,
+            SrsItem.subject_id.in_([s.id for s in subjects])
+        ).all()
+    } if subjects else {}
     result = {"level": level, "radicals": [], "kanji": [], "vocabulary": []}
     for s in subjects:
         item = {
@@ -82,7 +89,7 @@ def get_level_detail(level: int, db: Session = Depends(get_db)):
             "characters": s.characters,
             "type": s.type,
             "meanings": json.loads(s.meanings) if s.meanings else [],
-            "srs_stage": s.srs_item.srs_stage if s.srs_item else 0,
+            "srs_stage": srs_map.get(s.id, 0),
         }
         if s.type == "radical":
             result["radicals"].append(item)

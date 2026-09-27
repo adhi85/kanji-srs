@@ -1,9 +1,10 @@
 import json
+import time
 from unittest.mock import patch, MagicMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from backend.database import Base
-from backend.models import Subject, SubjectDependency, SrsItem
+from backend.models import Subject, SubjectDependency, SrsItem, User
 from backend.import_wanikani import import_subjects
 
 
@@ -57,7 +58,10 @@ def test_import_subjects():
         mock_httpx.Client.return_value = mock_client
 
         db = Session()
-        import_subjects(db, "fake-token")
+        user = User(username="testuser", password_hash="hashed", created_at=time.time())
+        db.add(user)
+        db.commit()
+        import_subjects(db, "fake-token", user_id=user.id)
         db.close()
 
     db = Session()
