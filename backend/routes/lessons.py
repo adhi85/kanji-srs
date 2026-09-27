@@ -22,7 +22,7 @@ def _get_intervals(db: Session, user_id: int) -> list:
 
 @router.get("/lessons")
 def get_lessons(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    from sqlalchemy import func
+    from sqlalchemy import case, func
     from backend.jlpt_mapping import wanikani_level_to_jlpt
     from backend.routes.levels import compute_current_level
 
@@ -56,7 +56,12 @@ def get_lessons(db: Session = Depends(get_db), current_user: User = Depends(get_
         allowed = [k for k, v in jlpt_order.items() if v <= current_rank]
         query = query.filter(Subject.jlpt_level.in_(allowed))
 
-    items = query.order_by(Subject.level, Subject.id).limit(batch_size).all()
+    type_order = case(
+        (Subject.type == "radical", 0),
+        (Subject.type == "kanji", 1),
+        else_=2,
+    )
+    items = query.order_by(Subject.level, type_order, Subject.id).limit(batch_size).all()
     results = []
     for item in items:
         s = item.subject

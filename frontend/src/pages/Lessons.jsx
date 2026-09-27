@@ -148,12 +148,15 @@ export default function Lessons() {
 
     return (
       <div>
-        <div className="lesson-progress-dots">
-          {items.map((_, i) => (
-            <div
-              key={i}
-              className={`lesson-dot${i === currentIndex ? ' active' : ''}${i < currentIndex ? ' completed' : ''}`}
-            />
+        <div className="lesson-item-tabs">
+          {items.map((it, i) => (
+            <button
+              key={it.id}
+              className={`lesson-item-tab type-${it.type}${i === currentIndex ? ' active' : ''}${i < currentIndex ? ' visited' : ''}`}
+              onClick={() => { setSlideDir(i > currentIndex ? 1 : -1); setCurrentIndex(i); setInfoScreen('meaning'); }}
+            >
+              <CharacterDisplay item={it} />
+            </button>
           ))}
         </div>
 
