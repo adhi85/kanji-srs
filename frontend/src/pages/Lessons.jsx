@@ -17,6 +17,7 @@ export default function Lessons() {
   const [quizIndex, setQuizIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [quizResult, setQuizResult] = useState(null);
+  const [wrongCounts, setWrongCounts] = useState({});
   const inputRef = useRef(null);
   const boundRef = useRef(false);
 
@@ -231,8 +232,24 @@ export default function Lessons() {
     const handleKeyDown = (e) => {
       if (e.key === 'Enter') {
         if (quizResult === false) {
+          const itemKey = `${current.item.id}-${current.answerType}`;
+          const count = (wrongCounts[itemKey] || 0) + 1;
+          setWrongCounts({ ...wrongCounts, [itemKey]: count });
           setAnswer('');
           setQuizResult(null);
+
+          if (count >= 3) {
+            setQuizIndex(quizIndex + 1);
+          } else {
+            const remaining = quizQueue.slice(quizIndex + 1);
+            const insertAt = Math.floor(Math.random() * (remaining.length + 1));
+            const newRemaining = [
+              ...remaining.slice(0, insertAt),
+              current,
+              ...remaining.slice(insertAt),
+            ];
+            setQuizQueue([...quizQueue.slice(0, quizIndex), ...newRemaining]);
+          }
         } else {
           checkAnswer();
         }
