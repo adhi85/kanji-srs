@@ -88,6 +88,25 @@ def test_reading_hint_for_kunyomi(db, client):
     assert srs_item.incorrect_count == 0
 
 
+def test_double_wrong_only_drops_once(db, client):
+    s = Subject(id=10, type="kanji", characters="火", slug="fire", level=1, jlpt_level="N5",
+                meanings=json.dumps([{"meaning": "Fire", "primary": True}]),
+                readings=json.dumps([{"reading": "ひ", "primary": True, "type": "kunyomi"}]),
+                meaning_mnemonic="Flames.")
+    db.add(s)
+    db.add(SrsItem(subject_id=10, srs_stage=5, next_review_at=time.time() - 100))
+    db.add(Setting(key="srs_intervals", value=json.dumps(DEFAULT_INTERVALS)))
+    db.commit()
+
+    resp1 = client.post("/api/reviews/10", json={"answer_type": "meaning", "answer": "water"})
+    assert resp1.json()["correct"] is False
+    assert resp1.json()["new_stage"] == 3
+
+    resp2 = client.post("/api/reviews/10", json={"answer_type": "reading", "answer": "か"})
+    assert resp2.json()["correct"] is False
+    assert resp2.json()["new_stage"] == 3
+
+
 def test_reading_no_hint_for_wrong_answer(db, client):
     _seed_with_kunyomi(db)
     resp = client.post("/api/reviews/2", json={"answer_type": "reading", "answer": "かん"})

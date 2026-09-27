@@ -113,9 +113,15 @@ def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get
 
     intervals = _get_intervals(db)
     new_stage = item.srs_stage
-    both_needed = subject.type != "radical"
+    both_needed = subject.type not in ("radical", "kana_vocabulary")
     meaning_done = item.meaning_correct_in_session == 1
     reading_done = item.reading_correct_in_session == 1 if both_needed else True
+
+    if not correct and item.incorrect_in_session == 0:
+        new_stage = retreat_stage(item.srs_stage)
+        item.srs_stage = new_stage
+        item.next_review_at = next_review_time(new_stage, intervals)
+        item.incorrect_in_session = 1
 
     if meaning_done and reading_done:
         new_stage = advance_stage(item.srs_stage)
@@ -123,12 +129,7 @@ def submit_review(subject_id: int, req: AnswerRequest, db: Session = Depends(get
         item.next_review_at = next_review_time(new_stage, intervals)
         item.meaning_correct_in_session = 0
         item.reading_correct_in_session = 0
-    elif not correct:
-        new_stage = retreat_stage(item.srs_stage)
-        item.srs_stage = new_stage
-        item.next_review_at = next_review_time(new_stage, intervals)
-        item.meaning_correct_in_session = 0
-        item.reading_correct_in_session = 0
+        item.incorrect_in_session = 0
 
     db.commit()
 
