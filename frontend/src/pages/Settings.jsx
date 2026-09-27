@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Save, RotateCcw, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '../api';
 
 const DEFAULT_INTERVALS = [0, 14400, 28800, 82800, 169200, 601200, 1206000, 2588400, 10364400, 0];
@@ -12,7 +15,6 @@ function formatInterval(seconds) {
 
 export default function Settings() {
   const [settings, setSettings] = useState(null);
-  const [saved, setSaved] = useState(false);
   const [showIntervals, setShowIntervals] = useState(false);
 
   useEffect(() => {
@@ -21,8 +23,7 @@ export default function Settings() {
 
   const save = async () => {
     await api.updateSettings(settings);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    toast.success('Settings saved');
   };
 
   const updateSetting = (key, value) => {
@@ -40,8 +41,12 @@ export default function Settings() {
   const intervals = settings.srs_intervals || DEFAULT_INTERVALS;
 
   return (
-    <div>
-      <h1 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '1.5rem' }}>Settings</h1>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+    >
+      <h1 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1.25rem', letterSpacing: '-0.02em' }}>Settings</h1>
 
       <div className="card">
         <div className="settings-section">
@@ -110,47 +115,63 @@ export default function Settings() {
           >
             <h2 style={{ margin: 0 }}>SRS Intervals</h2>
           </div>
-          {showIntervals && (
-            <div className="mt-1">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Stage</th>
-                    <th>Interval (seconds)</th>
-                    <th>Duration</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {['Apprentice I', 'Apprentice II', 'Apprentice III', 'Apprentice IV',
-                    'Guru I', 'Guru II', 'Master', 'Enlightened'].map((name, i) => (
-                    <tr key={i}>
-                      <td>{name}</td>
-                      <td>
-                        <input
-                          type="number"
-                          className="input"
-                          style={{ width: 120 }}
-                          value={intervals[i + 1]}
-                          onChange={(e) => updateInterval(i + 1, e.target.value)}
-                        />
-                      </td>
-                      <td className="text-muted">{formatInterval(intervals[i + 1])}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button className="btn btn-sm btn-secondary mt-1" onClick={() => updateSetting('srs_intervals', [...DEFAULT_INTERVALS])}>
-                Reset to Defaults
-              </button>
-            </div>
-          )}
+          <AnimatePresence>
+            {showIntervals && (
+              <motion.div
+                className="mt-1"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <div className="card" style={{ padding: 0, overflow: 'hidden', margin: '0.5rem 0' }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Stage</th>
+                        <th>Interval (seconds)</th>
+                        <th>Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {['Apprentice I', 'Apprentice II', 'Apprentice III', 'Apprentice IV',
+                        'Guru I', 'Guru II', 'Master', 'Enlightened'].map((name, i) => (
+                        <tr key={i} style={{ cursor: 'default' }}>
+                          <td style={{ fontSize: '0.85rem' }}>{name}</td>
+                          <td>
+                            <input
+                              type="number"
+                              className="input"
+                              style={{ width: 110 }}
+                              value={intervals[i + 1]}
+                              onChange={(e) => updateInterval(i + 1, e.target.value)}
+                            />
+                          </td>
+                          <td className="text-muted" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {formatInterval(intervals[i + 1])}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button
+                  className="btn btn-sm btn-secondary mt-1"
+                  onClick={() => updateSetting('srs_intervals', [...DEFAULT_INTERVALS])}
+                >
+                  <RotateCcw size={13} /> Reset to Defaults
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        <div className="flex-between mt-2">
-          <button className="btn btn-primary" onClick={save}>Save Settings</button>
-          {saved && <span style={{ color: 'var(--color-correct)', fontWeight: 600 }}>Saved!</span>}
+        <div className="flex-between mt-2" style={{ paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+          <button className="btn btn-primary" onClick={save}>
+            <Save size={15} /> Save Settings
+          </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -1,16 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, ArrowRight, BookOpen, Check, Sparkles } from 'lucide-react';
 import { api } from '../api';
 import MnemonicRenderer from '../components/MnemonicRenderer';
 import ItemCard from '../components/ItemCard';
 import TypeBadge from '../components/TypeBadge';
 import { bind, unbind, isKana } from 'wanakana';
 
+const slideVariants = {
+  enter: (dir) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir) => ({ x: dir > 0 ? -60 : 60, opacity: 0 }),
+};
+
 export default function Lessons() {
   const [items, setItems] = useState([]);
   const [phase, setPhase] = useState('loading');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [infoScreen, setInfoScreen] = useState('meaning');
+  const [slideDir, setSlideDir] = useState(1);
   const navigate = useNavigate();
 
   const [quizQueue, setQuizQueue] = useState([]);
@@ -63,19 +72,28 @@ export default function Lessons() {
 
   if (phase === 'empty') {
     return (
-      <div className="card text-center" style={{ padding: '3rem' }}>
+      <motion.div
+        className="card empty-state"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+      >
+        <BookOpen size={40} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
         <h2>No Lessons Available</h2>
-        <p className="text-muted mt-1">Complete some reviews to unlock new items.</p>
-        <button className="btn btn-primary mt-2" onClick={() => navigate('/')}>Dashboard</button>
-      </div>
+        <p>Complete some reviews to unlock new items.</p>
+        <button className="btn btn-primary mt-2" onClick={() => navigate('/')}>
+          Dashboard
+        </button>
+      </motion.div>
     );
   }
 
   if (phase === 'study') {
     const item = items[currentIndex];
     const hasReadings = item.type !== 'radical';
+    const contentKey = `${currentIndex}-${infoScreen}`;
 
     const goNext = () => {
+      setSlideDir(1);
       if (infoScreen === 'meaning' && hasReadings) {
         setInfoScreen('reading');
       } else if (currentIndex < items.length - 1) {
@@ -100,6 +118,7 @@ export default function Lessons() {
     };
 
     const goPrev = () => {
+      setSlideDir(-1);
       if (infoScreen === 'reading') {
         setInfoScreen('meaning');
       } else if (currentIndex > 0) {
@@ -119,62 +138,80 @@ export default function Lessons() {
           ))}
         </div>
 
-        <div className="card">
-          <div className={`character-header type-${item.type}`}>
+        <div className="card" style={{ overflow: 'hidden' }}>
+          <motion.div
+            className={`character-header type-${item.type}`}
+            key={`header-${currentIndex}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
             <div className="character-large">{item.characters || '?'}</div>
             <TypeBadge type={item.type} />
-          </div>
+          </motion.div>
 
-          {infoScreen === 'meaning' ? (
-            <div>
-              <div className="lesson-info-section">
-                <h3>Meaning</h3>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-                  {(item.meanings || []).filter((m) => m.primary).map((m) => m.meaning).join(', ')}
-                </div>
-                <div className="text-muted text-sm mt-1">
-                  {(item.meanings || []).filter((m) => !m.primary && m.accepted_answer !== false).map((m) => m.meaning).join(', ')}
-                </div>
-              </div>
+          <AnimatePresence mode="wait" custom={slideDir}>
+            <motion.div
+              key={contentKey}
+              custom={slideDir}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            >
+              {infoScreen === 'meaning' ? (
+                <div>
+                  <div className="lesson-info-section">
+                    <h3>Meaning</h3>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
+                      {(item.meanings || []).filter((m) => m.primary).map((m) => m.meaning).join(', ')}
+                    </div>
+                    <div className="text-muted text-sm mt-1">
+                      {(item.meanings || []).filter((m) => !m.primary && m.accepted_answer !== false).map((m) => m.meaning).join(', ')}
+                    </div>
+                  </div>
 
-              {item.meaning_mnemonic && (
-                <div className="lesson-info-section">
-                  <h3>Meaning Mnemonic</h3>
-                  <MnemonicRenderer text={item.meaning_mnemonic} />
-                </div>
-              )}
+                  {item.meaning_mnemonic && (
+                    <div className="lesson-info-section">
+                      <h3>Meaning Mnemonic</h3>
+                      <MnemonicRenderer text={item.meaning_mnemonic} />
+                    </div>
+                  )}
 
-              {item.components && item.components.length > 0 && (
-                <div className="lesson-info-section">
-                  <h3>Components</h3>
-                  <div className="item-grid">
-                    {item.components.map((c) => (
-                      <ItemCard key={c.id} item={c} />
+                  {item.components && item.components.length > 0 && (
+                    <div className="lesson-info-section">
+                      <h3>Components</h3>
+                      <div className="item-grid">
+                        {item.components.map((c) => (
+                          <ItemCard key={c.id} item={c} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div className="lesson-info-section">
+                    <h3>Reading</h3>
+                    {(item.readings || []).map((r, i) => (
+                      <div key={i} style={{ fontSize: '1.2rem', marginBottom: '0.3rem' }}>
+                        <span style={{ fontWeight: r.primary ? 700 : 400 }}>{r.reading}</span>
+                        {r.type && <span className="reading-label">{r.type}</span>}
+                      </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <div className="lesson-info-section">
-                <h3>Reading</h3>
-                {(item.readings || []).map((r, i) => (
-                  <div key={i} style={{ fontSize: '1.3rem', marginBottom: '0.25rem' }}>
-                    <span style={{ fontWeight: r.primary ? 700 : 400 }}>{r.reading}</span>
-                    {r.type && <span className="reading-label">{r.type}</span>}
-                  </div>
-                ))}
-              </div>
 
-              {item.reading_mnemonic && (
-                <div className="lesson-info-section">
-                  <h3>Reading Mnemonic</h3>
-                  <MnemonicRenderer text={item.reading_mnemonic} />
+                  {item.reading_mnemonic && (
+                    <div className="lesson-info-section">
+                      <h3>Reading Mnemonic</h3>
+                      <MnemonicRenderer text={item.reading_mnemonic} />
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
+            </motion.div>
+          </AnimatePresence>
 
           <div className="lesson-nav">
             <button
@@ -182,12 +219,15 @@ export default function Lessons() {
               onClick={goPrev}
               disabled={currentIndex === 0 && infoScreen === 'meaning'}
             >
-              &#8592; Back
+              <ArrowLeft size={16} /> Back
             </button>
+            <div className="text-sm text-muted">
+              {currentIndex + 1} / {items.length}
+            </div>
             <button className={`btn btn-${item.type}`} onClick={goNext}>
               {currentIndex === items.length - 1 && (infoScreen === 'reading' || !hasReadings)
-                ? 'Start Quiz →'
-                : 'Next →'}
+                ? <>Start Quiz <Check size={16} /></>
+                : <>Next <ArrowRight size={16} /></>}
             </button>
           </div>
         </div>
@@ -284,7 +324,13 @@ export default function Lessons() {
           ))}
         </div>
 
-        <div className="card">
+        <motion.div
+          className="card"
+          key={quizIndex}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2 }}
+        >
           <div className={`character-header type-${item.type}`}>
             <div className="character-large">{item.characters || '?'}</div>
           </div>
@@ -294,9 +340,13 @@ export default function Lessons() {
           </div>
 
           {quizWarning && (
-            <div className="review-warning mt-1">
+            <motion.div
+              className="review-warning mt-1"
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
               {quizWarning}
-            </div>
+            </motion.div>
           )}
 
           <div className="review-input-area">
@@ -312,37 +362,59 @@ export default function Lessons() {
               autoComplete="off"
               autoCapitalize="off"
             />
+            <div className="kbd-hint text-center">
+              <kbd>Enter</kbd> to submit
+            </div>
           </div>
 
-          {quizResult === false && (
-            <div className="mt-2">
-              <div style={{ color: 'var(--color-incorrect)', fontWeight: 600, marginBottom: '0.5rem' }}>
-                Correct answer: {answerType === 'meaning'
-                  ? (item.meanings || []).filter((m) => m.primary).map((m) => m.meaning).join(', ')
-                  : (item.readings || []).filter((r) => r.primary).map((r) => r.reading).join(', ')}
-              </div>
-              <MnemonicRenderer text={answerType === 'meaning' ? item.meaning_mnemonic : item.reading_mnemonic} />
-              <div className="mt-2 text-center">
-                <span className="text-muted text-sm">Press Enter to continue</span>
-              </div>
-            </div>
-          )}
+          <AnimatePresence>
+            {quizResult === false && (
+              <motion.div
+                className="mt-2"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <div style={{ color: 'var(--color-incorrect)', fontWeight: 600, marginBottom: '0.5rem' }}>
+                  Correct answer: {answerType === 'meaning'
+                    ? (item.meanings || []).filter((m) => m.primary).map((m) => m.meaning).join(', ')
+                    : (item.readings || []).filter((r) => r.primary).map((r) => r.reading).join(', ')}
+                </div>
+                <MnemonicRenderer text={answerType === 'meaning' ? item.meaning_mnemonic : item.reading_mnemonic} />
+                <div className="mt-2 text-center">
+                  <span className="text-muted text-sm">Press <kbd>Enter</kbd> to continue</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {quizResult === null && (
             <div className="mt-2 text-center">
               <button className={`btn btn-${item.type}`} onClick={checkAnswer}>
-                Check
+                <Check size={16} /> Check
               </button>
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   if (phase === 'done') {
     return (
-      <div className="card text-center" style={{ padding: '3rem' }}>
+      <motion.div
+        className="card empty-state"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+        >
+          <Sparkles size={48} style={{ color: 'var(--color-correct)', marginBottom: '1rem' }} />
+        </motion.div>
         <h2 style={{ color: 'var(--color-correct)' }}>Lessons Complete!</h2>
         <p className="text-muted mt-1">{items.length} items learned. They will appear in your reviews soon.</p>
         <div className="mt-2 flex gap-2" style={{ justifyContent: 'center' }}>
@@ -353,7 +425,7 @@ export default function Lessons() {
             Dashboard
           </button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 

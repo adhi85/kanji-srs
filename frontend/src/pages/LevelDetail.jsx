@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { api } from '../api';
 import ItemCard from '../components/ItemCard';
 import ProgressBar from '../components/ProgressBar';
@@ -28,26 +30,31 @@ export default function LevelDetail() {
   return (
     <div>
       <button className="back-link" onClick={() => navigate('/subjects')}>
-        &#8592; Back to Subjects
+        <ArrowLeft size={14} /> Back to Subjects
       </button>
 
-      <div className="card">
+      <motion.div
+        className="card"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+      >
         <div className="flex-between">
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Level {data.level}</h1>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em' }}>Level {data.level}</h1>
           <div className="flex gap-1">
             <button
-              className="btn btn-sm btn-secondary"
+              className="btn btn-sm btn-icon btn-secondary"
               disabled={parseInt(level) <= 1}
               onClick={() => navigate(`/levels/${parseInt(level) - 1}`)}
             >
-              &#8592;
+              <ChevronLeft size={16} />
             </button>
             <button
-              className="btn btn-sm btn-secondary"
+              className="btn btn-sm btn-icon btn-secondary"
               disabled={parseInt(level) >= 60}
               onClick={() => navigate(`/levels/${parseInt(level) + 1}`)}
             >
-              &#8594;
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
@@ -59,11 +66,17 @@ export default function LevelDetail() {
             color="var(--color-correct)"
           />
         </div>
-      </div>
+      </motion.div>
 
-      {sections.map((section) => (
+      {sections.map((section, sIdx) => (
         section.items.length > 0 && (
-          <div key={section.key} className="card">
+          <motion.div
+            key={section.key}
+            className="card"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0.05 + sIdx * 0.08 }}
+          >
             <div className="card-header" style={{ color: section.color }}>
               {section.label} ({section.items.length})
             </div>
@@ -72,7 +85,7 @@ export default function LevelDetail() {
                 <ItemCard key={item.id} item={item} showSrs />
               ))}
             </div>
-          </div>
+          </motion.div>
         )
       ))}
     </div>

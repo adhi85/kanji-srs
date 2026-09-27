@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Check, ArrowRight, RotateCcw, Flag, Sparkles } from 'lucide-react';
 import { api } from '../api';
 import MnemonicRenderer from '../components/MnemonicRenderer';
 import ProgressBar from '../components/ProgressBar';
+import ScoreRing from '../components/ScoreRing';
 import { bind, unbind, isKana } from 'wanakana';
 
 function isAllAscii(str) {
@@ -185,11 +188,16 @@ export default function Reviews() {
 
   if (phase === 'empty') {
     return (
-      <div className="card text-center" style={{ padding: '3rem' }}>
+      <motion.div
+        className="card empty-state"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+      >
+        <RotateCcw size={40} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
         <h2>No Reviews Available</h2>
-        <p className="text-muted mt-1">Check back later for new reviews.</p>
+        <p>Check back later for new reviews.</p>
         <button className="btn btn-primary mt-2" onClick={() => navigate('/')}>Dashboard</button>
-      </div>
+      </motion.div>
     );
   }
 
@@ -206,19 +214,25 @@ export default function Reviews() {
       <div>
         <div className={`review-header type-${current.type}`}>
           <div className="review-progress-text">{done} / {total}</div>
-          <div style={{ flex: 1, margin: '0 1rem' }}>
+          <div style={{ flex: 1, margin: '0 0.75rem' }}>
             <ProgressBar value={done} max={total} color="rgba(255,255,255,0.3)" />
           </div>
           {!wrappingUp ? (
-            <button className="btn btn-sm btn-secondary" onClick={() => setWrappingUp(true)}>
-              Wrap Up
+            <button className="btn btn-sm btn-secondary" onClick={() => setWrappingUp(true)} style={{ color: 'white' }}>
+              <Flag size={13} /> Wrap Up
             </button>
           ) : (
             <span className="text-sm" style={{ opacity: 0.8 }}>Wrapping up...</span>
           )}
         </div>
 
-        <div className={`card ${shakeClass}`}>
+        <motion.div
+          className={`card ${shakeClass}`}
+          key={currentIndex}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.15 }}
+        >
           <div className={`character-header type-${current.type}`}>
             <div className="character-large">{current.characters || '?'}</div>
           </div>
@@ -240,42 +254,60 @@ export default function Reviews() {
               autoComplete="off"
               autoCapitalize="off"
             />
+            <div className="kbd-hint text-center">
+              <kbd>Enter</kbd> to {result ? 'continue' : 'submit'}
+            </div>
           </div>
 
-          {warning && !result && (
-            <div className="review-warning mt-1">
-              {warning}
-            </div>
-          )}
+          <AnimatePresence>
+            {warning && !result && (
+              <motion.div
+                className="review-warning mt-1"
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+              >
+                {warning}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {result && !result.correct && (
-            <div className="mt-2">
-              <div style={{ color: 'var(--color-incorrect)', fontWeight: 600, marginBottom: '0.5rem' }}>
-                Correct answer: {result.correct_answer}
-              </div>
-              {result.mnemonic && <MnemonicRenderer text={result.mnemonic} />}
-            </div>
-          )}
+          <AnimatePresence>
+            {result && !result.correct && (
+              <motion.div
+                className="mt-2"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <div style={{ color: 'var(--color-incorrect)', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                  Correct answer: {result.correct_answer}
+                </div>
+                {result.mnemonic && <MnemonicRenderer text={result.mnemonic} />}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="mt-2 text-center">
             {result ? (
               <div className="flex gap-1" style={{ justifyContent: 'center' }}>
                 {!result.correct && (
                   <button className="btn btn-secondary" onClick={retype}>
-                    Retype
+                    <RotateCcw size={14} /> Retype
                   </button>
                 )}
                 <button className={`btn ${result.correct ? 'btn-correct' : 'btn-danger'}`} onClick={nextItem}>
-                  Next &#8594;
+                  Next <ArrowRight size={14} />
                 </button>
               </div>
             ) : (
               <button className="btn btn-primary" onClick={submitAnswer}>
-                Check
+                <Check size={16} /> Check
               </button>
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -285,10 +317,26 @@ export default function Reviews() {
     const pct = total > 0 ? Math.round((stats.correct / total) * 100) : 0;
 
     return (
-      <div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4 }}
+      >
         <div className="card text-center">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.1, type: 'spring', stiffness: 150 }}
+          >
+            <Sparkles size={32} style={{ color: pct >= 80 ? 'var(--color-correct)' : 'var(--color-warning)', marginBottom: '0.5rem' }} />
+          </motion.div>
           <h2>Review Complete!</h2>
-          <div className="summary-stats mt-2">
+
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '1.25rem 0' }}>
+            <ScoreRing percentage={pct} size={110} strokeWidth={7} />
+          </div>
+
+          <div className="summary-stats">
             <div className="summary-stat">
               <div className="summary-stat-value" style={{ color: 'var(--color-correct)' }}>{stats.correct}</div>
               <div className="summary-stat-label">Correct</div>
@@ -298,9 +346,6 @@ export default function Reviews() {
               <div className="summary-stat-label">Incorrect</div>
             </div>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 700, color: pct >= 80 ? 'var(--color-correct)' : 'var(--color-incorrect)' }}>
-            {pct}%
-          </div>
         </div>
 
         {stats.items.length > 0 && (
@@ -308,17 +353,23 @@ export default function Reviews() {
             <div className="card-header">Results</div>
             <div className="summary-items-list">
               {stats.items.map((item, i) => (
-                <div key={i} className="summary-item-row">
+                <motion.div
+                  key={i}
+                  className="summary-item-row"
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.2, delay: i * 0.02 }}
+                >
                   <span className={`type-badge type-${item.type}`} style={{ width: 32, textAlign: 'center', fontSize: '1rem' }}>
                     {item.characters || '?'}
                   </span>
-                  <span style={{ flex: 1 }}>
+                  <span style={{ flex: 1, fontSize: '0.88rem' }}>
                     {item.answerType === 'meaning' ? 'Meaning' : 'Reading'}
                   </span>
-                  <span style={{ color: item.correct ? 'var(--color-correct)' : 'var(--color-incorrect)', fontWeight: 600 }}>
+                  <span style={{ color: item.correct ? 'var(--color-correct)' : 'var(--color-incorrect)', fontWeight: 600, fontSize: '1.1rem' }}>
                     {item.correct ? '✓' : '✗'}
                   </span>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -327,7 +378,7 @@ export default function Reviews() {
         <div className="text-center mt-2">
           <button className="btn btn-primary" onClick={() => navigate('/')}>Dashboard</button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 

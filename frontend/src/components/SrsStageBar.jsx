@@ -1,3 +1,5 @@
+import { motion } from 'framer-motion';
+
 const STAGE_COLORS = [
   null,
   'var(--color-apprentice)',
@@ -34,10 +36,13 @@ export default function SrsStageBar({ stage }) {
   return (
     <div className="srs-stage-bar" title={STAGE_NAMES[stage]}>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((s) => (
-        <div
+        <motion.div
           key={s}
           className={`srs-stage-segment${s <= stage ? ' filled' : ''}`}
           style={s <= stage ? { background: STAGE_COLORS[s] } : undefined}
+          initial={false}
+          animate={s <= stage ? { scale: [1, 1.3, 1], opacity: 1 } : { scale: 1, opacity: 0.3 }}
+          transition={{ duration: 0.3, delay: s * 0.03 }}
         />
       ))}
     </div>

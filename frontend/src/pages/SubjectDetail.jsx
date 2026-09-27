@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Plus, X } from 'lucide-react';
 import { api } from '../api';
 import MnemonicRenderer from '../components/MnemonicRenderer';
 import TypeBadge from '../components/TypeBadge';
@@ -36,10 +38,15 @@ export default function SubjectDetail() {
   return (
     <div>
       <button className="back-link" onClick={() => navigate(-1)}>
-        &#8592; Back
+        <ArrowLeft size={14} /> Back
       </button>
 
-      <div className="card">
+      <motion.div
+        className="card"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+      >
         <div className={`character-header type-${subject.type}`}>
           <div className="character-large">{subject.characters || subject.slug || '?'}</div>
           <TypeBadge type={subject.type} />
@@ -60,10 +67,18 @@ export default function SubjectDetail() {
           <h2>User Synonyms</h2>
           <div className="synonym-list">
             {(subject.user_synonyms || []).map((syn) => (
-              <span key={syn.id} className="synonym-tag">
+              <motion.span
+                key={syn.id}
+                className="synonym-tag"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                layout
+              >
                 {syn.meaning}
-                <button className="synonym-remove" onClick={() => removeSynonym(syn.id)}>&#x2715;</button>
-              </span>
+                <button className="synonym-remove" onClick={() => removeSynonym(syn.id)}>
+                  <X size={12} />
+                </button>
+              </motion.span>
             ))}
           </div>
           <div className="synonym-add mt-1">
@@ -76,7 +91,9 @@ export default function SubjectDetail() {
               onKeyDown={(e) => e.key === 'Enter' && addSynonym()}
               style={{ width: 200 }}
             />
-            <button className="btn btn-sm btn-secondary" onClick={addSynonym}>Add</button>
+            <button className="btn btn-sm btn-secondary" onClick={addSynonym}>
+              <Plus size={14} /> Add
+            </button>
           </div>
         </div>
 
@@ -167,7 +184,7 @@ export default function SubjectDetail() {
                 {getStageName(srs.srs_stage ?? 0)}
               </div>
               <div className="srs-info-label">Stage</div>
-              <div className="mt-1">
+              <div className="mt-1" style={{ display: 'flex', justifyContent: 'center' }}>
                 <SrsStageBar stage={srs.srs_stage ?? 0} />
               </div>
             </div>
@@ -199,7 +216,7 @@ export default function SubjectDetail() {
             Level {subject.level} {subject.jlpt_level && `· ${subject.jlpt_level}`}
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
