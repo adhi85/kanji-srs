@@ -2,10 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ArrowRight, RotateCcw, Flag, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '../api';
 import MnemonicRenderer from '../components/MnemonicRenderer';
 import ProgressBar from '../components/ProgressBar';
 import ScoreRing from '../components/ScoreRing';
+import ItemInfoPanel from '../components/ItemInfoPanel';
 import { bind, unbind, isKana } from 'wanakana';
 
 function isAllAscii(str) {
@@ -22,6 +24,7 @@ export default function Reviews() {
   const [stats, setStats] = useState({ correct: 0, incorrect: 0, items: [] });
   const [wrappingUp, setWrappingUp] = useState(false);
   const [shakeClass, setShakeClass] = useState('');
+  const [infoOpen, setInfoOpen] = useState(false);
   const inputRef = useRef(null);
   const boundRef = useRef(false);
   const navigate = useNavigate();
@@ -74,6 +77,16 @@ export default function Reviews() {
     }
   }, [currentIndex, phase, result]);
 
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'f' && result && phase === 'reviewing' && document.activeElement?.tagName !== 'INPUT') {
+        setInfoOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [result, phase]);
+
   const doShake = () => {
     setShakeClass('shake');
     setTimeout(() => setShakeClass(''), 400);
@@ -120,6 +133,11 @@ export default function Reviews() {
     }
 
     setResult(resp);
+    setInfoOpen(!resp.correct);
+
+    if (resp.level_up) {
+      toast(`Level up! You reached Level ${resp.level_up.new_level}!`, { duration: 5000 });
+    }
 
     if (resp.correct) {
       setStats((prev) => ({
@@ -141,6 +159,7 @@ export default function Reviews() {
     setAnswer('');
     setResult(null);
     setWarning(null);
+    setInfoOpen(false);
     if (inputRef.current) inputRef.current.value = '';
 
     if (wrappingUp) {
@@ -307,6 +326,10 @@ export default function Reviews() {
               </button>
             )}
           </div>
+
+          {result && (
+            <ItemInfoPanel item={current} open={infoOpen} onToggle={() => setInfoOpen(!infoOpen)} />
+          )}
         </motion.div>
       </div>
     );

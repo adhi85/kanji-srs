@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Plus, X } from 'lucide-react';
+import { ArrowLeft, Plus, X, RotateCcw, Sunrise } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '../api';
 import MnemonicRenderer from '../components/MnemonicRenderer';
 import TypeBadge from '../components/TypeBadge';
@@ -154,6 +155,17 @@ export default function SubjectDetail() {
           </div>
         )}
 
+        {subject.type === 'kanji' && subject.visually_similar && subject.visually_similar.length > 0 && (
+          <div className="detail-section">
+            <h2>Visually Similar</h2>
+            <div className="item-grid">
+              {subject.visually_similar.map((c) => (
+                <ItemCard key={c.id} item={c} />
+              ))}
+            </div>
+          </div>
+        )}
+
         {subject.components && subject.components.length > 0 && (
           <div className="detail-section">
             <h2>Components</h2>
@@ -207,6 +219,34 @@ export default function SubjectDetail() {
                 </div>
                 <div className="srs-info-label">Next Review</div>
               </div>
+            )}
+          </div>
+          <div className="mt-1" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+            {srs.srs_stage >= 1 && srs.srs_stage <= 8 && (
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={async () => {
+                  if (window.confirm('Reset this item to the beginning? All progress will be lost.')) {
+                    await api.resetSubject(id);
+                    toast.success('Item reset');
+                    api.getSubject(id).then(setSubject);
+                  }
+                }}
+              >
+                <RotateCcw size={14} /> Reset Progress
+              </button>
+            )}
+            {srs.srs_stage === 9 && (
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={async () => {
+                  await api.resurrectSubject(id);
+                  toast.success('Item resurrected! It will appear in your reviews.');
+                  api.getSubject(id).then(setSubject);
+                }}
+              >
+                <Sunrise size={14} /> Resurrect
+              </button>
             )}
           </div>
         </div>

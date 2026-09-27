@@ -92,40 +92,58 @@ export default function Lessons() {
     const hasReadings = item.type !== 'radical';
     const contentKey = `${currentIndex}-${infoScreen}`;
 
+    const hasContext = (item.type === 'vocabulary' || item.type === 'kana_vocabulary') &&
+      item.context_sentences && item.context_sentences.length > 0;
+
+    const startQuiz = () => {
+      const queue = [];
+      items.forEach((it) => {
+        queue.push({ item: it, answerType: 'meaning' });
+        if (it.type !== 'radical') {
+          queue.push({ item: it, answerType: 'reading' });
+        }
+      });
+      for (let i = queue.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [queue[i], queue[j]] = [queue[j], queue[i]];
+      }
+      setQuizQueue(queue);
+      setQuizIndex(0);
+      setPhase('quiz');
+    };
+
     const goNext = () => {
       setSlideDir(1);
       if (infoScreen === 'meaning' && hasReadings) {
         setInfoScreen('reading');
+      } else if ((infoScreen === 'meaning' || infoScreen === 'reading') && hasContext) {
+        setInfoScreen('context');
       } else if (currentIndex < items.length - 1) {
         setCurrentIndex(currentIndex + 1);
         setInfoScreen('meaning');
       } else {
-        const queue = [];
-        items.forEach((it) => {
-          queue.push({ item: it, answerType: 'meaning' });
-          if (it.type !== 'radical') {
-            queue.push({ item: it, answerType: 'reading' });
-          }
-        });
-        for (let i = queue.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [queue[i], queue[j]] = [queue[j], queue[i]];
-        }
-        setQuizQueue(queue);
-        setQuizIndex(0);
-        setPhase('quiz');
+        startQuiz();
       }
     };
 
     const goPrev = () => {
       setSlideDir(-1);
-      if (infoScreen === 'reading') {
+      if (infoScreen === 'context') {
+        setInfoScreen(hasReadings ? 'reading' : 'meaning');
+      } else if (infoScreen === 'reading') {
         setInfoScreen('meaning');
       } else if (currentIndex > 0) {
+        const prevItem = items[currentIndex - 1];
+        const prevHasContext = (prevItem.type === 'vocabulary' || prevItem.type === 'kana_vocabulary') &&
+          prevItem.context_sentences && prevItem.context_sentences.length > 0;
         setCurrentIndex(currentIndex - 1);
-        setInfoScreen(items[currentIndex - 1].type !== 'radical' ? 'reading' : 'meaning');
+        setInfoScreen(prevHasContext ? 'context' : (prevItem.type !== 'radical' ? 'reading' : 'meaning'));
       }
     };
+
+    const isLastScreen = (infoScreen === 'context') ||
+      (!hasContext && infoScreen === 'reading') ||
+      (!hasContext && !hasReadings && infoScreen === 'meaning');
 
     return (
       <div>
@@ -160,7 +178,7 @@ export default function Lessons() {
               exit="exit"
               transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             >
-              {infoScreen === 'meaning' ? (
+              {infoScreen === 'meaning' && (
                 <div>
                   <div className="lesson-info-section">
                     <h3>Meaning</h3>
@@ -172,10 +190,24 @@ export default function Lessons() {
                     </div>
                   </div>
 
+                  {item.part_of_speech && item.part_of_speech.length > 0 && (
+                    <div className="lesson-info-section">
+                      <h3>Part of Speech</h3>
+                      <div className="flex gap-1">
+                        {item.part_of_speech.map((pos, i) => (
+                          <span key={i} className="pos-badge">{pos}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {item.meaning_mnemonic && (
                     <div className="lesson-info-section">
                       <h3>Meaning Mnemonic</h3>
                       <MnemonicRenderer text={item.meaning_mnemonic} />
+                      {item.meaning_hint && (
+                        <div className="hint-text mt-1">Hint: {item.meaning_hint}</div>
+                      )}
                     </div>
                   )}
 
@@ -189,8 +221,21 @@ export default function Lessons() {
                       </div>
                     </div>
                   )}
+
+                  {item.visually_similar && item.visually_similar.length > 0 && (
+                    <div className="lesson-info-section">
+                      <h3>Visually Similar</h3>
+                      <div className="item-grid">
+                        {item.visually_similar.map((c) => (
+                          <ItemCard key={c.id} item={c} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
+              )}
+
+              {infoScreen === 'reading' && (
                 <div>
                   <div className="lesson-info-section">
                     <h3>Reading</h3>
@@ -206,8 +251,25 @@ export default function Lessons() {
                     <div className="lesson-info-section">
                       <h3>Reading Mnemonic</h3>
                       <MnemonicRenderer text={item.reading_mnemonic} />
+                      {item.reading_hint && (
+                        <div className="hint-text mt-1">Hint: {item.reading_hint}</div>
+                      )}
                     </div>
                   )}
+                </div>
+              )}
+
+              {infoScreen === 'context' && (
+                <div>
+                  <div className="lesson-info-section">
+                    <h3>Context Sentences</h3>
+                    {(item.context_sentences || []).map((s, i) => (
+                      <div key={i} className="context-sentence">
+                        <div className="context-ja">{s.ja}</div>
+                        <div className="context-en">{s.en}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </motion.div>
@@ -225,7 +287,7 @@ export default function Lessons() {
               {currentIndex + 1} / {items.length}
             </div>
             <button className={`btn btn-${item.type}`} onClick={goNext}>
-              {currentIndex === items.length - 1 && (infoScreen === 'reading' || !hasReadings)
+              {currentIndex === items.length - 1 && isLastScreen
                 ? <>Start Quiz <Check size={16} /></>
                 : <>Next <ArrowRight size={16} /></>}
             </button>

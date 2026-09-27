@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookOpen, RotateCcw, Clock, Flame, Trophy } from 'lucide-react';
+import { BookOpen, RotateCcw, Clock, Flame, Trophy, Unlock, Award } from 'lucide-react';
 import { api } from '../api';
 import ProgressBar from '../components/ProgressBar';
 import ReviewForecast from '../components/ReviewForecast';
 import CriticalItems from '../components/CriticalItems';
+import ItemCard from '../components/ItemCard';
 import { PageSkeleton } from '../components/Skeleton';
 
 const SRS_STAGES = [
@@ -31,6 +32,8 @@ export default function Dashboard() {
   const [forecast, setForecast] = useState(null);
   const [criticalItems, setCriticalItems] = useState(null);
   const [extraStudySummary, setExtraStudySummary] = useState(null);
+  const [recentlyUnlocked, setRecentlyUnlocked] = useState(null);
+  const [levelHistory, setLevelHistory] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,6 +41,8 @@ export default function Dashboard() {
     api.getForecast().then(setForecast);
     api.getCriticalItems().then(setCriticalItems);
     api.getExtraStudySummary().then(setExtraStudySummary);
+    api.getRecentlyUnlocked().then(setRecentlyUnlocked);
+    api.getLevelHistory().then(setLevelHistory);
   }, []);
 
   useEffect(() => {
@@ -112,6 +117,20 @@ export default function Dashboard() {
           <div className="session-label">Lessons</div>
         </motion.div>
       </motion.div>
+
+      {recentlyUnlocked && recentlyUnlocked.length > 0 && (
+        <motion.div variants={fadeUp} className="card">
+          <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Unlock size={13} />
+            Recently Unlocked
+          </div>
+          <div className="recently-unlocked-scroll">
+            {recentlyUnlocked.map((item) => (
+              <ItemCard key={item.id} item={item} />
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {extraStudySummary && (
         <motion.div variants={fadeUp} className="card">
@@ -188,6 +207,26 @@ export default function Dashboard() {
           ))}
         </div>
       </motion.div>
+      {levelHistory && levelHistory.length > 0 && (
+        <motion.div variants={fadeUp} className="card">
+          <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Award size={13} />
+            Level Timeline
+          </div>
+          <div className="level-timeline">
+            {levelHistory.map((e) => (
+              <div key={e.level} className="level-timeline-row">
+                <span className="level-timeline-level">Lv {e.level}</span>
+                <span className="level-timeline-date">
+                  {new Date(e.reached_at * 1000).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'short', day: 'numeric',
+                  })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }

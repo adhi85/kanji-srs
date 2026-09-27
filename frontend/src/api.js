@@ -46,4 +46,8 @@ export const api = {
   deleteSubjectSynonym: (subjectId, synonymId) => request(`/subjects/${subjectId}/synonyms/${synonymId}`, {
     method: 'DELETE',
   }),
+  getRecentlyUnlocked: () => request('/recently-unlocked'),
+  getLevelHistory: () => request('/level-history'),
+  resetSubject: (id) => request(`/subjects/${id}/reset`, { method: 'POST' }),
+  resurrectSubject: (id) => request(`/subjects/${id}/resurrect`, { method: 'POST' }),
 };
