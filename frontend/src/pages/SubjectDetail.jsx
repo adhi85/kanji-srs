@@ -129,7 +129,7 @@ export default function SubjectDetail() {
             <h2>Meaning Mnemonic</h2>
             <MnemonicRenderer text={subject.meaning_mnemonic} />
             {subject.meaning_hint && (
-              <div className="hint-text mt-1">Hint: {subject.meaning_hint}</div>
+              <div className="hint-text mt-1">Hint: <MnemonicRenderer text={subject.meaning_hint} /></div>
             )}
           </div>
         )}
@@ -139,7 +139,7 @@ export default function SubjectDetail() {
             <h2>Reading Mnemonic</h2>
             <MnemonicRenderer text={subject.reading_mnemonic} />
             {subject.reading_hint && (
-              <div className="hint-text mt-1">Hint: {subject.reading_hint}</div>
+              <div className="hint-text mt-1">Hint: <MnemonicRenderer text={subject.reading_hint} /></div>
             )}
           </div>
         )}

@@ -207,7 +207,7 @@ export default function Lessons() {
                       <h3>Meaning Mnemonic</h3>
                       <MnemonicRenderer text={item.meaning_mnemonic} />
                       {item.meaning_hint && (
-                        <div className="hint-text mt-1">Hint: {item.meaning_hint}</div>
+                        <div className="hint-text mt-1">Hint: <MnemonicRenderer text={item.meaning_hint} /></div>
                       )}
                     </div>
                   )}
@@ -253,7 +253,7 @@ export default function Lessons() {
                       <h3>Reading Mnemonic</h3>
                       <MnemonicRenderer text={item.reading_mnemonic} />
                       {item.reading_hint && (
-                        <div className="hint-text mt-1">Hint: {item.reading_hint}</div>
+                        <div className="hint-text mt-1">Hint: <MnemonicRenderer text={item.reading_hint} /></div>
                       )}
                     </div>
                   )}
