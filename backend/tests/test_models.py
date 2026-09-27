@@ -1,5 +1,5 @@
 import json
-from backend.models import Subject, SubjectDependency, SrsItem, Setting, UserSynonym
+from backend.models import Subject, SubjectDependency, SrsItem, Setting, UserSynonym, LevelEvent
 
 
 def test_subject_creation(db):
@@ -96,3 +96,20 @@ def test_user_synonym_model(db):
     syns = db.query(UserSynonym).filter_by(subject_id=97).all()
     assert len(syns) == 1
     assert syns[0].meaning == "Huge"
+
+
+def test_srs_item_has_incorrect_in_session(db):
+    db.add(Subject(id=96, type="radical", characters="x", slug="x", level=1,
+                   meanings=json.dumps([{"meaning": "X", "primary": True}])))
+    db.add(SrsItem(subject_id=96, incorrect_in_session=1))
+    db.commit()
+    item = db.query(SrsItem).filter_by(subject_id=96).first()
+    assert item.incorrect_in_session == 1
+
+
+def test_level_event_model(db):
+    db.add(LevelEvent(level=2, reached_at=1000000.0))
+    db.commit()
+    row = db.query(LevelEvent).first()
+    assert row.level == 2
+    assert row.reached_at == 1000000.0

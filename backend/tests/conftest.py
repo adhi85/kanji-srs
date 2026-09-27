@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from backend.database import Base, get_db
-from backend.models import Subject, SubjectDependency, SrsItem, Setting, UserSynonym  # noqa: F401
+from backend.models import Subject, SubjectDependency, SrsItem, Setting, UserSynonym, LevelEvent  # noqa: F401
 from backend.main import app
 
 engine = create_engine(

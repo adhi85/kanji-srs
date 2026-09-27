@@ -55,6 +55,7 @@ class SrsItem(Base):
     meaning_correct_in_session = Column(Integer, default=0)
     reading_correct_in_session = Column(Integer, default=0)
     last_incorrect_at = Column(Float, nullable=True)
+    incorrect_in_session = Column(Integer, default=0)
 
     subject = relationship("Subject", back_populates="srs_item")
 
@@ -64,6 +65,14 @@ class Setting(Base):
 
     key = Column(Text, primary_key=True)
     value = Column(Text, nullable=False)
+
+
+class LevelEvent(Base):
+    __tablename__ = "level_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    level = Column(Integer, unique=True, nullable=False)
+    reached_at = Column(Float, nullable=False)
 
 
 class UserSynonym(Base):

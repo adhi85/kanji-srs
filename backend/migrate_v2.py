@@ -30,6 +30,17 @@ def migrate(db_path: str = DEFAULT_DB):
         )
     """)
 
+    if "incorrect_in_session" not in srs_cols:
+        cursor.execute("ALTER TABLE srs_items ADD COLUMN incorrect_in_session INTEGER DEFAULT 0")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS level_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            level INTEGER UNIQUE NOT NULL,
+            reached_at REAL NOT NULL
+        )
+    """)
+
     conn.commit()
     conn.close()
     print(f"Migration complete: {db_path}")
