@@ -203,8 +203,9 @@ export default function Lessons() {
     const { item, answerType } = current;
 
     const checkAnswer = () => {
-      if (!answer.trim()) return;
-      const userAnswer = answer.trim().toLowerCase();
+      const raw = inputRef.current?.value || answer;
+      if (!raw.trim()) return;
+      const userAnswer = raw.trim().toLowerCase();
       let correct = false;
 
       if (answerType === 'meaning') {

@@ -67,9 +67,10 @@ export default function Reviews() {
   }, [currentIndex, phase, result]);
 
   const submitAnswer = async () => {
-    if (!answer.trim()) return;
+    const raw = inputRef.current?.value || answer;
+    if (!raw.trim()) return;
     const current = queue[currentIndex];
-    const resp = await api.submitReview(current.subject_id, current.answerType, answer.trim());
+    const resp = await api.submitReview(current.subject_id, current.answerType, raw.trim());
     setResult(resp);
 
     if (resp.correct) {
