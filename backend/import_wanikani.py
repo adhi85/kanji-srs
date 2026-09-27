@@ -25,6 +25,12 @@ def import_subjects(db: Session, token: str, user_id: int = 1):
 
             for item in data["data"]:
                 subj_data = item["data"]
+                char_image = None
+                for img in subj_data.get("character_images", []):
+                    if img.get("content_type") == "image/svg+xml":
+                        char_image = img.get("url")
+                        break
+
                 subject = Subject(
                     id=item["id"],
                     type=item["object"],
@@ -43,6 +49,7 @@ def import_subjects(db: Session, token: str, user_id: int = 1):
                     reading_hint=subj_data.get("reading_hint"),
                     auxiliary_meanings=json.dumps(subj_data.get("auxiliary_meanings", [])),
                     visually_similar_subject_ids=json.dumps(subj_data.get("visually_similar_subject_ids", [])),
+                    character_image=char_image,
                 )
                 db.merge(subject)
 

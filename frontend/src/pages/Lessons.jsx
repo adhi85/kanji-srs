@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, BookOpen, Check, Sparkles } from 'lucide-react';
 import { api } from '../api';
 import MnemonicRenderer from '../components/MnemonicRenderer';
 import ItemCard from '../components/ItemCard';
+import CharacterDisplay from '../components/CharacterDisplay';
 import TypeBadge from '../components/TypeBadge';
 import { bind, unbind, isKana } from 'wanakana';
 
@@ -164,7 +165,7 @@ export default function Lessons() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <div className="character-large">{item.characters || '?'}</div>
+            <div className="character-large"><CharacterDisplay item={item} /></div>
             <TypeBadge type={item.type} />
           </motion.div>
 
@@ -394,7 +395,7 @@ export default function Lessons() {
           transition={{ duration: 0.2 }}
         >
           <div className={`character-header type-${item.type}`}>
-            <div className="character-large">{item.characters || '?'}</div>
+            <div className="character-large"><CharacterDisplay item={item} /></div>
           </div>
 
           <div className={`review-answer-type answer-type-${answerType}`}>

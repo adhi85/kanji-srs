@@ -32,6 +32,7 @@ class Subject(Base):
     reading_hint = Column(Text, nullable=True)
     auxiliary_meanings = Column(Text, nullable=True)
     visually_similar_subject_ids = Column(Text, nullable=True)
+    character_image = Column(Text, nullable=True)
 
     srs_items = relationship("SrsItem", back_populates="subject")
     components = relationship(

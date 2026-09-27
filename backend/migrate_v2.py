@@ -30,6 +30,9 @@ def migrate(db_path: str = DEFAULT_DB):
         )
     """)
 
+    if "character_image" not in existing:
+        cursor.execute("ALTER TABLE subjects ADD COLUMN character_image TEXT")
+
     if "incorrect_in_session" not in srs_cols:
         cursor.execute("ALTER TABLE srs_items ADD COLUMN incorrect_in_session INTEGER DEFAULT 0")
 

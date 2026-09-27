@@ -84,6 +84,8 @@ def get_lessons(db: Session = Depends(get_db), current_user: User = Depends(get_
             "id": s.id,
             "type": s.type,
             "characters": s.characters,
+            "slug": s.slug,
+            "character_image": s.character_image,
             "meanings": json.loads(s.meanings),
             "readings": json.loads(s.readings) if s.readings else [],
             "meaning_mnemonic": s.meaning_mnemonic,

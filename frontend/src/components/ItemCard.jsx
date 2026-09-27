@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getStageCategory } from './SrsStageBar';
+import CharacterDisplay from './CharacterDisplay';
 
 const SRS_DOT_COLORS = {
   locked: 'var(--color-locked)',
@@ -20,7 +21,7 @@ export default function ItemCard({ item, showSrs = false }) {
     <motion.div whileHover={{ y: -3 }} whileTap={{ scale: 0.97 }}>
       <Link to={`/subjects/${item.id}`} className={`item-card type-${item.type}`}>
         <span className="item-card-character">
-          {item.characters || item.slug || '?'}
+          <CharacterDisplay item={item} />
         </span>
         <span className="item-card-meaning">{primaryMeaning}</span>
         {showSrs && (

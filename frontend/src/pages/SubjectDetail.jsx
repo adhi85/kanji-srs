@@ -7,6 +7,7 @@ import { api } from '../api';
 import MnemonicRenderer from '../components/MnemonicRenderer';
 import TypeBadge from '../components/TypeBadge';
 import ItemCard from '../components/ItemCard';
+import CharacterDisplay from '../components/CharacterDisplay';
 import SrsStageBar, { getStageName, getStageCategory } from '../components/SrsStageBar';
 
 export default function SubjectDetail() {
@@ -49,7 +50,7 @@ export default function SubjectDetail() {
         transition={{ duration: 0.25 }}
       >
         <div className={`character-header type-${subject.type}`}>
-          <div className="character-large">{subject.characters || subject.slug || '?'}</div>
+          <div className="character-large"><CharacterDisplay item={subject} /></div>
           <TypeBadge type={subject.type} />
         </div>
 

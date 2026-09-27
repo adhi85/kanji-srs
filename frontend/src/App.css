@@ -496,6 +496,30 @@ a:hover { color: #33bbff; }
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
+.character-image {
+  filter: invert(1);
+}
+
+.character-large .character-image {
+  height: 4.5rem;
+  width: auto;
+}
+
+.character-large .character-slug {
+  font-size: 1.4rem;
+  letter-spacing: 0.02em;
+}
+
+.item-card-character .character-image {
+  height: 1.5rem;
+  width: auto;
+}
+
+.item-card-character .character-slug {
+  font-size: 0.65rem;
+  letter-spacing: 0.01em;
+}
+
 .character-header {
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding: 2rem 1rem 1.5rem;

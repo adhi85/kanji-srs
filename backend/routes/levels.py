@@ -87,6 +87,7 @@ def get_level_detail(level: int, db: Session = Depends(get_db), current_user: Us
         item = {
             "id": s.id,
             "characters": s.characters,
+            "character_image": s.character_image,
             "type": s.type,
             "meanings": json.loads(s.meanings) if s.meanings else [],
             "srs_stage": srs_map.get(s.id, 0),

@@ -8,6 +8,7 @@ import MnemonicRenderer from '../components/MnemonicRenderer';
 import ProgressBar from '../components/ProgressBar';
 import ScoreRing from '../components/ScoreRing';
 import ItemInfoPanel from '../components/ItemInfoPanel';
+import CharacterDisplay from '../components/CharacterDisplay';
 import { bind, unbind, isKana } from 'wanakana';
 
 function isAllAscii(str) {
@@ -253,7 +254,7 @@ export default function Reviews() {
           transition={{ duration: 0.15 }}
         >
           <div className={`character-header type-${current.type}`}>
-            <div className="character-large">{current.characters || '?'}</div>
+            <div className="character-large"><CharacterDisplay item={current} /></div>
           </div>
 
           <div className={`review-answer-type answer-type-${current.answerType}`}>
@@ -384,7 +385,7 @@ export default function Reviews() {
                   transition={{ duration: 0.2, delay: i * 0.02 }}
                 >
                   <span className={`type-badge type-${item.type}`} style={{ width: 32, textAlign: 'center', fontSize: '1rem' }}>
-                    {item.characters || '?'}
+                    <CharacterDisplay item={item} />
                   </span>
                   <span style={{ flex: 1, fontSize: '0.88rem' }}>
                     {item.answerType === 'meaning' ? 'Meaning' : 'Reading'}

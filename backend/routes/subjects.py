@@ -27,6 +27,7 @@ def _subject_to_dict(s: Subject) -> dict:
         "meaning_hint": s.meaning_hint,
         "reading_hint": s.reading_hint,
         "visually_similar_subject_ids": json.loads(s.visually_similar_subject_ids) if s.visually_similar_subject_ids else [],
+        "character_image": s.character_image,
     }
 
 
@@ -95,6 +96,7 @@ def list_subjects_by_type(
             "slug": s.slug,
             "type": s.type,
             "meanings": json.loads(s.meanings),
+            "character_image": s.character_image,
             "srs_stage": srs_map.get(s.id, 0),
         })
     return {
