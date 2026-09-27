@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Grid3X3, List, Search } from 'lucide-react';
 import { api } from '../api';
@@ -12,6 +12,7 @@ export default function Subjects() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ jlpt: '', type: '', q: '' });
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.getLevels().then(setLevels);
@@ -49,6 +50,24 @@ export default function Subjects() {
             List
           </button>
         </div>
+      </div>
+
+      <div className="type-browse-links mb-2">
+        {[
+          { path: '/radicals', label: 'Radicals', className: 'type-radical' },
+          { path: '/kanji', label: 'Kanji', className: 'type-kanji' },
+          { path: '/vocabulary', label: 'Vocabulary', className: 'type-vocabulary' },
+        ].map(({ path, label, className }) => (
+          <motion.button
+            key={path}
+            className={`type-browse-btn ${className}`}
+            onClick={() => navigate(path)}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            {label}
+          </motion.button>
+        ))}
       </div>
 
       {view === 'levels' && levels && (

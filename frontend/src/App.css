@@ -1622,6 +1622,45 @@ kbd {
   padding-bottom: 0.25rem;
 }
 
+/* === Type Browse Links === */
+
+.type-browse-links {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.type-browse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  color: #fff;
+  transition: box-shadow 0.2s;
+}
+
+.type-browse-btn.type-radical {
+  background: var(--gradient-radical);
+}
+
+.type-browse-btn.type-kanji {
+  background: var(--gradient-kanji);
+}
+
+.type-browse-btn.type-vocabulary {
+  background: var(--gradient-vocabulary);
+}
+
+.type-browse-btn:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
 /* === Auth Pages === */
 
 .auth-page {

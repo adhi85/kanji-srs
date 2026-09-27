@@ -55,6 +55,57 @@ def list_subjects(
     return {"items": [_subject_to_dict(s) for s in items], "total": total, "page": page}
 
 
+@router.get("/subjects/by-type/{item_type}")
+def list_subjects_by_type(
+    item_type: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    valid_types = ("radical", "kanji", "vocabulary", "kana_vocabulary")
+    if item_type not in valid_types:
+        raise HTTPException(status_code=400, detail=f"type must be one of {valid_types}")
+    type_filter = [item_type]
+    if item_type == "vocabulary":
+        type_filter.append("kana_vocabulary")
+    subjects = (
+        db.query(Subject)
+        .filter(Subject.type.in_(type_filter))
+        .order_by(Subject.level, Subject.id)
+        .all()
+    )
+    srs_map = {}
+    if subjects:
+        for srs in db.query(SrsItem).filter(
+            SrsItem.user_id == current_user.id,
+            SrsItem.subject_id.in_([s.id for s in subjects]),
+        ).all():
+            srs_map[srs.subject_id] = srs.srs_stage
+
+    levels = {}
+    for s in subjects:
+        if s.level not in levels:
+            levels[s.level] = []
+        primary = next(
+            (m["meaning"] for m in json.loads(s.meanings) if m.get("primary")),
+            json.loads(s.meanings)[0]["meaning"] if s.meanings else "",
+        )
+        levels[s.level].append({
+            "id": s.id,
+            "characters": s.characters,
+            "slug": s.slug,
+            "type": s.type,
+            "meanings": json.loads(s.meanings),
+            "srs_stage": srs_map.get(s.id, 0),
+        })
+    return {
+        "type": item_type,
+        "levels": [
+            {"level": lvl, "items": items}
+            for lvl, items in sorted(levels.items())
+        ],
+    }
+
+
 @router.get("/subjects/{subject_id}")
 def get_subject(subject_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     subject = db.get(Subject, subject_id)

@@ -13,6 +13,7 @@ import SubjectDetail from './pages/SubjectDetail';
 import LevelDetail from './pages/LevelDetail';
 import Settings from './pages/Settings';
 import ExtraStudy from './pages/ExtraStudy';
+import TypeBrowse from './pages/TypeBrowse';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import './App.css';
@@ -60,6 +61,9 @@ function AnimatedRoutes() {
           <Route path="/lessons" element={<ProtectedRoute><Lessons /></ProtectedRoute>} />
           <Route path="/reviews" element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
           <Route path="/subjects" element={<ProtectedRoute><Subjects /></ProtectedRoute>} />
+          <Route path="/radicals" element={<ProtectedRoute><TypeBrowse type="radical" /></ProtectedRoute>} />
+          <Route path="/kanji" element={<ProtectedRoute><TypeBrowse type="kanji" /></ProtectedRoute>} />
+          <Route path="/vocabulary" element={<ProtectedRoute><TypeBrowse type="vocabulary" /></ProtectedRoute>} />
           <Route path="/subjects/:id" element={<ProtectedRoute><SubjectDetail /></ProtectedRoute>} />
           <Route path="/levels/:level" element={<ProtectedRoute><LevelDetail /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

@@ -40,6 +40,7 @@ export const api = {
     body: JSON.stringify({ answer_type: answerType, answer }),
   }),
   getSubjects: (params) => request(`/subjects?${new URLSearchParams(params)}`),
+  getSubjectsByType: (type) => request(`/subjects/by-type/${type}`),
   getSubject: (id) => request(`/subjects/${id}`),
   getSettings: () => request('/settings'),
   updateSettings: (updates) => request('/settings', {
