@@ -38,6 +38,11 @@ def import_subjects(db: Session, token: str):
                     reading_mnemonic=subj_data.get("reading_mnemonic"),
                     part_of_speech=json.dumps(subj_data.get("parts_of_speech", [])),
                     document_url=subj_data.get("document_url"),
+                    context_sentences=json.dumps(subj_data.get("context_sentences", [])),
+                    meaning_hint=subj_data.get("meaning_hint"),
+                    reading_hint=subj_data.get("reading_hint"),
+                    auxiliary_meanings=json.dumps(subj_data.get("auxiliary_meanings", [])),
+                    visually_similar_subject_ids=json.dumps(subj_data.get("visually_similar_subject_ids", [])),
                 )
                 db.merge(subject)
 
