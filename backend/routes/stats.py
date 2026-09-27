@@ -1,5 +1,6 @@
 import time
 from collections import defaultdict
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import case, func
@@ -112,3 +113,44 @@ def get_summary(db: Session = Depends(get_db)):
         "current_level": current_level,
         "level_progress": level_progress,
     }
+
+
+@router.get("/forecast")
+def get_forecast(db: Session = Depends(get_db)):
+    now = time.time()
+    now_dt = datetime.fromtimestamp(now, tz=timezone.utc)
+
+    items = (
+        db.query(SrsItem.next_review_at)
+        .filter(SrsItem.srs_stage.between(1, 8))
+        .filter(SrsItem.next_review_at > now)
+        .filter(SrsItem.next_review_at <= now + 5 * 86400)
+        .all()
+    )
+
+    hourly = {}
+    daily = {}
+
+    for (review_at,) in items:
+        review_dt = datetime.fromtimestamp(review_at, tz=timezone.utc)
+        if review_at <= now + 86400:
+            hour_key = review_dt.strftime("%Y-%m-%dT%H:00")
+            hourly[hour_key] = hourly.get(hour_key, 0) + 1
+        day_key = review_dt.strftime("%Y-%m-%d")
+        daily[day_key] = daily.get(day_key, 0) + 1
+
+    next_24h = []
+    for h in range(24):
+        hour_dt = now_dt.replace(minute=0, second=0, microsecond=0) + timedelta(hours=h)
+        key = hour_dt.strftime("%Y-%m-%dT%H:00")
+        label = hour_dt.strftime("%H:00")
+        next_24h.append({"hour": key, "label": label, "count": hourly.get(key, 0)})
+
+    next_5_days = []
+    for d in range(5):
+        day_dt = now_dt + timedelta(days=d)
+        key = day_dt.strftime("%Y-%m-%d")
+        label = day_dt.strftime("%a %m/%d")
+        next_5_days.append({"date": key, "label": label, "count": daily.get(key, 0)})
+
+    return {"next_24h": next_24h, "next_5_days": next_5_days}
