@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+data/.jwt_secret
+data/*-wal
+data/*-shm
+node_modules/
+frontend/dist/
+.env
+*.egg-info/
+.git/
+docs/
+run.sh

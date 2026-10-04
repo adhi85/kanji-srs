@@ -1,0 +1,11 @@
+services:
+  kanji-srs:
+    image: kanji-srs:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - kanji-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  kanji-data:
