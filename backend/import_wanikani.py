@@ -37,7 +37,11 @@ def import_subjects(db: Session, token: str, user_id: int = 1):
                     characters=subj_data.get("characters"),
                     slug=subj_data.get("slug"),
                     level=subj_data["level"],
-                    jlpt_level=wanikani_level_to_jlpt(subj_data["level"]),
+                    jlpt_level=wanikani_level_to_jlpt(
+                    subj_data["level"],
+                    characters=subj_data.get("characters"),
+                    subject_type=item["object"],
+                ),
                     meanings=json.dumps(subj_data.get("meanings", [])),
                     readings=json.dumps(subj_data.get("readings", [])),
                     meaning_mnemonic=subj_data.get("meaning_mnemonic"),
